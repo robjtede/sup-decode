@@ -157,9 +157,9 @@ dependencies = [
 
 [[package]]
 name = "image"
-version = "0.22.3"
+version = "0.22.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b4be8aaefbe7545dc42ae925afb55a0098f226a3fe5ef721872806f44f57826"
+checksum = "08ed2ada878397b045454ac7cfb011d73132c59f31a955d230bd1f1c2e68eb4a"
 dependencies = [
  "byteorder",
  "gif",
@@ -388,17 +388,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rusup"
-version = "0.1.0"
-dependencies = [
- "byteorder",
- "chrono",
- "hex-literal",
- "image",
- "log",
-]
-
-[[package]]
 name = "scoped_threadpool"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -424,6 +413,17 @@ name = "semver-parser"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
+
+[[package]]
+name = "sup-decode"
+version = "0.1.0"
+dependencies = [
+ "byteorder",
+ "chrono",
+ "hex-literal",
+ "image",
+ "log",
+]
 
 [[package]]
 name = "syn"

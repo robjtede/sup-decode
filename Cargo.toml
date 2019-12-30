@@ -1,14 +1,14 @@
 [package]
-name = "rusup"
+name = "sup-decode"
 version = "0.1.0"
 authors = ["Rob Ede <robjtede@icloud.com>"]
 edition = "2018"
 
 [dependencies]
-byteorder = "1.3.2"
-chrono = "0.4.10"
-log = "0.4.8"
-image = "0.22.3"
+byteorder = "1.3"
+chrono = "0.4"
+log = "0.4"
+image = "0.22"
 
 [dev-dependencies]
-hex-literal = "0.2.1"
+hex-literal = "0.2"
