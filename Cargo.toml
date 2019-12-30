@@ -1,0 +1,14 @@
+[package]
+name = "rusup"
+version = "0.1.0"
+authors = ["Rob Ede <rob@cryptofacilities.com>"]
+edition = "2018"
+
+[dependencies]
+byteorder = "1.3.2"
+chrono = "0.4.10"
+log = "0.4.8"
+image = "0.22.3"
+
+[dev-dependencies]
+hex-literal = "0.2.1"
