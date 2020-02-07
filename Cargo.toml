@@ -8,7 +8,7 @@ edition = "2018"
 byteorder = "1.3.2"
 chrono = "0.4.10"
 log = "0.4.8"
-image = "0.22.3"
+image = "0.22.5"
 
 [dev-dependencies]
 hex-literal = "0.2.1"
