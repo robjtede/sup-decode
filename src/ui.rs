@@ -60,11 +60,16 @@ impl Sandbox for SupViewer {
 
     fn view(&mut self) -> Element<Message> {
         let current_frame = self.state.frames[self.state.current_frame].clone();
-        
-        Column::new()
+
+        let content = Column::new()
+            .padding(20)
+            .spacing(20)
             .push(current_frame)
             .push(
                 Row::new()
+                    .max_width(400)
+                    .spacing(20)
+                    .align_items(Align::Center)
                     .push(
                         Button::new(&mut self.prev_frame_button, Text::new("prev"))
                             .on_press(Message::PrevFrame),
@@ -78,7 +83,13 @@ impl Sandbox for SupViewer {
                         Button::new(&mut self.next_frame_button, Text::new("next"))
                             .on_press(Message::NextFrame),
                     ),
-            )
+            );
+
+        Container::new(content)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .center_x()
+            .center_y()
             .into()
     }
 

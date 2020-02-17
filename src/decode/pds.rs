@@ -1,7 +1,9 @@
 use std::io::{Cursor, Read, Seek, SeekFrom};
 
-use log::trace;
 use byteorder::{BigEndian, ReadBytesExt};
+use log::trace;
+
+use simple_matrix::Matrix;
 
 #[derive(Debug, Clone)]
 pub struct PaletteDefinition {
@@ -28,6 +30,32 @@ impl PaletteEntry {
             cb,
             alpha,
         }
+    }
+
+    pub fn rgba(&self) -> [f32; 4] {
+        let conv_matrix = Matrix::from_iter(
+            3,
+            3,
+            vec![1.0f64, 1., 1., 0., -0.1873, 1.8556, 1.5748, -0.4682, 0.],
+        );
+
+        let ycrcb = Matrix::from_iter(
+            3,
+            1,
+            vec![
+                self.y as f64 / 255.0,
+                self.cb as f64 / 255.0,
+                self.cr as f64 / 255.0,
+            ],
+        );
+        let rgb = conv_matrix * ycrcb;
+
+        [
+            *rgb.get(0, 0).unwrap() as f32,
+            *rgb.get(1, 0).unwrap() as f32,
+            *rgb.get(2, 0).unwrap() as f32,
+            self.alpha as f32 / 255.0,
+        ]
     }
 }
 

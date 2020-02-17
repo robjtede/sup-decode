@@ -1719,6 +1719,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "simple-matrix"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6927a3d2ea606d10c38c7b923e108e29a2f47ca287e1cb707fa898ce4d58aa7c"
+
+[[package]]
 name = "slab"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1797,6 +1803,7 @@ dependencies = [
  "image 0.23.0",
  "log",
  "once_cell",
+ "simple-matrix",
 ]
 
 [[package]]

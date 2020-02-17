@@ -7,6 +7,8 @@ use iced_wgpu::{Primitive, Renderer};
 use crate::ui::Message;
 use crate::DisplaySet;
 
+const DEFAULT_RGBA: [f32; 4] = [0.0, 0.0, 0.0, 0.0];
+
 impl<Msg> Widget<Msg, Renderer> for DisplaySet {
     fn width(&self) -> Length {
         Length::Shrink
@@ -41,15 +43,21 @@ impl<Msg> Widget<Msg, Renderer> for DisplaySet {
         let quads: Vec<Primitive> = data
             .iter()
             .enumerate()
-            .map(|(i, color)| {
+            .map(|(i, color_id)| {
                 let x = (i % w as usize) as u16;
                 let y = (i / w as usize) as u16;
 
-                let color: Color = if *color == 0 {
-                    [1.0, 1.0, 1.0, 0.0].into()
+                let color: Color = if *color_id == 0 {
+                    DEFAULT_RGBA.into()
                 } else {
-                    let l = (*color as f32) / 255.0;
-                    [l; 3].into()
+                    let colors = self.pds().entries.clone();
+                    let color = colors
+                        .iter()
+                        .find(|entry| entry.id == *color_id)
+                        .map(|ycrcb| ycrcb.rgba())
+                        .unwrap_or(DEFAULT_RGBA);
+
+                    color.into()
                 };
 
                 Primitive::Quad {

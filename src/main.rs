@@ -4,12 +4,12 @@ use std::{
     env, fs,
     io::{Cursor, Read, Seek, SeekFrom},
 };
-use once_cell::sync::OnceCell;
+
+use iced::Sandbox as _;
 
 use byteorder::{BigEndian, ReadBytesExt};
 use chrono::NaiveTime;
-
-use iced::Sandbox as _;
+use once_cell::sync::OnceCell;
 
 mod decode;
 mod segment;
@@ -119,6 +119,10 @@ impl DisplaySet {
 
     pub fn ods(&self) -> &decode::ods::ObjectDefinition {
         self.ods.as_ref().unwrap()
+    }
+
+    pub fn pds(&self) -> &decode::pds::PaletteDefinition {
+        self.pds.as_ref().unwrap()
     }
 }
 
@@ -241,6 +245,6 @@ fn main() {
 
     let frames: Vec<DisplaySet> = frames.into_iter().cloned().collect();
     FRAMES.set(frames).unwrap();
-    
+
     ui::SupViewer::run(iced::Settings::default());
 }
