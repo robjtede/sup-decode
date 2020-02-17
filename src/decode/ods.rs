@@ -4,7 +4,7 @@ use byteorder::{BigEndian, ReadBytesExt};
 
 use crate::decode;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct ObjectDefinition {
     pub id: u16,
     pub version: u8,
@@ -14,7 +14,7 @@ pub struct ObjectDefinition {
     pub data: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash)]
 pub enum SequenceFlag {
     First,
     Last,

@@ -4,12 +4,27 @@ use std::{
     env, fs,
     io::{Cursor, Read, Seek, SeekFrom},
 };
+use once_cell::sync::OnceCell;
 
 use byteorder::{BigEndian, ReadBytesExt};
 use chrono::NaiveTime;
 
+use iced::Sandbox as _;
+
 mod decode;
 mod segment;
+mod ui;
+mod widgets;
+
+pub static FRAMES: OnceCell<Vec<DisplaySet>> = OnceCell::new();
+
+fn convert_ts(ts: u32) -> NaiveTime {
+    let millis = ts / 90;
+    let seconds = millis / 1000;
+    let nanos = (millis % 1000) * 1_000_000;
+
+    NaiveTime::from_num_seconds_from_midnight(seconds, nanos)
+}
 
 // Codec information taken from:
 // http://blog.thescorpius.com/index.php/2017/07/15/presentation-graphic-stream-sup-files-bluray-subtitle-format/
@@ -56,14 +71,14 @@ enum Segment {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-enum DisplaySetState {
+pub enum DisplaySetState {
     Incomplete,
     EmptyFrame,
     Complete,
 }
 
 #[derive(Debug, Clone)]
-struct DisplaySet {
+pub struct DisplaySet {
     pts: Option<NaiveTime>,
     pcs: Option<decode::pcs::PresentationComposition>,
     wds: Vec<decode::wds::WindowDefinition>,
@@ -112,7 +127,7 @@ fn main() {
     let file = args.nth(1).unwrap();
     let bytes = fs::read(file).unwrap();
     let bytes_len = bytes.len();
-    
+
     // let segments_raw = segment::segment_on(&bytes, &[0x50, 0x47]);
     // let segs_len = segments_raw.len();
 
@@ -204,32 +219,28 @@ fn main() {
 
     println!("processed {} frames", frames.len());
 
-    for (i, frame) in frames.iter().enumerate() {
-        println!(
-            "frame {:>3} / {}  @  {}",
-            i,
-            num_frames,
-            frame.pts().format("%H:%M:%S%.3f"),
-        );
+    // for (i, frame) in frames.iter().enumerate() {
+    //     println!(
+    //         "frame {:>3} / {}  @  {}",
+    //         i,
+    //         num_frames,
+    //         frame.pts().format("%H:%M:%S%.3f"),
+    //     );
 
-        let ods = frame.ods();
-        let image: Vec<_> = ods.data.clone();
+    //     let ods = frame.ods();
 
-        image::save_buffer(
-            format!("output/frame-{}.png", i),
-            &image,
-            ods.width as u32,
-            ods.height as u32,
-            image::ColorType::Gray(8),
-        )
-        .unwrap();
-    }
-}
+    //     image::save_buffer(
+    //         format!("output/frame-{}.png", i),
+    //         &ods.data,
+    //         ods.width as u32,
+    //         ods.height as u32,
+    //         image::ColorType::L8,
+    //     )
+    //     .unwrap();
+    // }
 
-fn convert_ts(ts: u32) -> NaiveTime {
-    let millis = ts / 90;
-    let seconds = millis / 1000;
-    let nanos = (millis % 1000) * 1_000_000;
-
-    NaiveTime::from_num_seconds_from_midnight(seconds, nanos)
+    let frames: Vec<DisplaySet> = frames.into_iter().cloned().collect();
+    FRAMES.set(frames).unwrap();
+    
+    ui::SupViewer::run(iced::Settings::default());
 }
