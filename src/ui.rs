@@ -3,7 +3,6 @@ use std::cmp;
 use iced::*;
 
 use crate::DisplaySet;
-use crate::FRAMES;
 
 #[derive(Debug, Clone, Default)]
 struct State {
@@ -41,17 +40,15 @@ impl SupViewer {
             ..Default::default()
         }
     }
-
-    pub fn with_global_frames() -> Self {
-        Self::with_frames(FRAMES.get().expect("frames is not set").clone())
-    }
 }
 
-impl Sandbox for SupViewer {
+impl Application for SupViewer {
+    type Executor = executor::Null;
+    type Flags = Vec<DisplaySet>;
     type Message = Message;
 
-    fn new() -> Self {
-        Self::with_global_frames()
+    fn new(init_frames: Self::Flags) -> (Self, Command<Self::Message>) {
+        (SupViewer::with_frames(init_frames), Command::none())
     }
 
     fn title(&self) -> String {
@@ -93,15 +90,21 @@ impl Sandbox for SupViewer {
             .into()
     }
 
-    fn update(&mut self, message: Message) {
+    fn update(&mut self, message: Message) -> Command<Self::Message> {
         let frames = self.state.frames.len();
 
         match message {
-            _ if frames == 0 => {}
-            Message::PrevFrame if self.state.current_frame <= 0 => {}
-            Message::PrevFrame => self.state.current_frame = self.state.current_frame - 1,
-            Message::NextFrame if self.state.current_frame >= frames - 1 => {}
-            Message::NextFrame => self.state.current_frame = self.state.current_frame + 1,
+            _ if frames == 0 => Command::none(),
+            Message::PrevFrame if self.state.current_frame <= 0 => Command::none(),
+            Message::PrevFrame => {
+                self.state.current_frame = self.state.current_frame - 1;
+                Command::none()
+            }
+            Message::NextFrame if self.state.current_frame >= frames - 1 => Command::none(),
+            Message::NextFrame => {
+                self.state.current_frame = self.state.current_frame + 1;
+                Command::none()
+            }
         }
     }
 }

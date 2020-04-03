@@ -2,7 +2,7 @@ use iced_native::{
     layout, Background, Color, Element, Hasher, Layout, Length, MouseCursor, Point, Rectangle,
     Size, Widget,
 };
-use iced_wgpu::{Primitive, Renderer};
+use iced_wgpu::{Defaults, Primitive, Renderer};
 
 use crate::ui::Message;
 use crate::DisplaySet;
@@ -33,6 +33,7 @@ impl<Msg> Widget<Msg, Renderer> for DisplaySet {
     fn draw(
         &self,
         _renderer: &mut Renderer,
+        defaults: &Defaults,
         layout: Layout<'_>,
         _cursor_position: Point,
     ) -> (Primitive, MouseCursor) {
@@ -68,7 +69,9 @@ impl<Msg> Widget<Msg, Renderer> for DisplaySet {
                         height: 1.0,
                     },
                     background: Background::Color(color),
+                    border_width: 0,
                     border_radius: 0,
+                    border_color: iced_native::Color::BLACK,
                 }
             })
             .collect();

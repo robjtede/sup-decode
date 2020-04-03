@@ -5,7 +5,7 @@ use std::{
     io::{Cursor, Read, Seek, SeekFrom},
 };
 
-use iced::Sandbox as _;
+use iced::Application as _;
 
 use byteorder::{BigEndian, ReadBytesExt};
 use chrono::NaiveTime;
@@ -15,8 +15,6 @@ mod decode;
 mod segment;
 mod ui;
 mod widgets;
-
-pub static FRAMES: OnceCell<Vec<DisplaySet>> = OnceCell::new();
 
 fn convert_ts(ts: u32) -> NaiveTime {
     let millis = ts / 90;
@@ -244,7 +242,9 @@ fn main() {
     // }
 
     let frames: Vec<DisplaySet> = frames.into_iter().cloned().collect();
-    FRAMES.set(frames).unwrap();
 
-    ui::SupViewer::run(iced::Settings::default());
+    let mut settings = iced::Settings::<Vec<DisplaySet>>::default();
+    settings.flags = frames;
+
+    ui::SupViewer::run(settings);
 }
