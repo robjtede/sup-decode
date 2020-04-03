@@ -9,7 +9,6 @@ use iced::Application as _;
 
 use byteorder::{BigEndian, ReadBytesExt};
 use chrono::NaiveTime;
-use once_cell::sync::OnceCell;
 
 mod decode;
 mod segment;
@@ -75,7 +74,7 @@ pub enum DisplaySetState {
     Complete,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct DisplaySet {
     pts: Option<NaiveTime>,
     pcs: Option<decode::pcs::PresentationComposition>,
@@ -243,7 +242,7 @@ fn main() {
 
     let frames: Vec<DisplaySet> = frames.into_iter().cloned().collect();
 
-    let mut settings = iced::Settings::<Vec<DisplaySet>>::default();
+    let mut settings = iced::Settings::default();
     settings.flags = frames;
 
     ui::SupViewer::run(settings);

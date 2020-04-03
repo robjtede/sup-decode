@@ -25,12 +25,27 @@ pub enum Message {
     PrevFrame,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug)]
 pub struct SupViewer {
     state: State,
 
     next_frame_button: button::State,
     prev_frame_button: button::State,
+
+    current_frame: DisplaySet,
+    current_frame_canvas_cache: canvas::layer::Cache<DisplaySet>,
+}
+
+impl Default for SupViewer {
+    fn default() -> Self {
+        Self {
+            state: Default::default(),
+            current_frame: Default::default(),
+            current_frame_canvas_cache: canvas::layer::Cache::new(),
+            next_frame_button: Default::default(),
+            prev_frame_button: Default::default(),
+        }
+    }
 }
 
 impl SupViewer {
@@ -56,37 +71,40 @@ impl Application for SupViewer {
     }
 
     fn view(&mut self) -> Element<Message> {
-        let current_frame = self.state.frames[self.state.current_frame].clone();
+        self.current_frame = self.state.frames[self.state.current_frame].clone();
 
-        let content = Column::new()
-            .padding(20)
-            .spacing(20)
-            .push(current_frame)
-            .push(
-                Row::new()
-                    .max_width(400)
-                    .spacing(20)
-                    .align_items(Align::Center)
-                    .push(
-                        Button::new(&mut self.prev_frame_button, Text::new("prev"))
-                            .on_press(Message::PrevFrame),
-                    )
-                    .push(Text::new(format!(
-                        "{} / {}",
-                        self.state.current_frame.to_string(),
-                        self.state.frames.len().to_string()
-                    )))
-                    .push(
-                        Button::new(&mut self.next_frame_button, Text::new("next"))
-                            .on_press(Message::NextFrame),
-                    ),
-            );
+        let ods = self.current_frame.ods();
+        let w = ods.width;
+        let h = ods.height;
+
+        let canvas = Canvas::new()
+            .width(Length::Units(w))
+            .height(Length::Units(h))
+            .push(self.current_frame_canvas_cache.with(&self.current_frame));
+
+        let content = Column::new().padding(20).spacing(20).push(canvas).push(
+            Row::new()
+                .max_width(400)
+                .spacing(20)
+                .align_items(Align::Center)
+                .push(
+                    Button::new(&mut self.prev_frame_button, Text::new("prev"))
+                        .on_press(Message::PrevFrame),
+                )
+                .push(Text::new(format!(
+                    "{} / {}",
+                    self.state.current_frame.to_string(),
+                    self.state.frames.len().to_string()
+                )))
+                .push(
+                    Button::new(&mut self.next_frame_button, Text::new("next"))
+                        .on_press(Message::NextFrame),
+                ),
+        );
 
         Container::new(content)
             .width(Length::Fill)
             .height(Length::Fill)
-            .center_x()
-            .center_y()
             .into()
     }
 
