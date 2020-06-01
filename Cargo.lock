@@ -961,9 +961,9 @@ dependencies = [
 
 [[package]]
 name = "iced_wgpu"
-version = "0.2.0"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd488401b505ffbdd048e9410f95168fc30ec54b8b9777cc2500c0fc943e7c8c"
+checksum = "2249966f8576b84029df4b31a1b88b46866592e98075402c4910e26fbce6a86d"
 dependencies = [
  "font-kit",
  "glam",
