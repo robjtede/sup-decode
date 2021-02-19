@@ -2,7 +2,7 @@ use std::cmp;
 
 use iced::*;
 
-use crate::DisplaySet;
+use crate::{widgets::DisplaySetView, DisplaySet};
 
 #[derive(Debug, Clone, Default)]
 struct State {
@@ -32,8 +32,7 @@ pub struct SupViewer {
     next_frame_button: button::State,
     prev_frame_button: button::State,
 
-    current_frame: DisplaySet,
-    current_frame_canvas_cache: canvas::layer::Cache<DisplaySet>,
+    current_frame: DisplaySetView,
 }
 
 impl Default for SupViewer {
@@ -41,7 +40,6 @@ impl Default for SupViewer {
         Self {
             state: Default::default(),
             current_frame: Default::default(),
-            current_frame_canvas_cache: canvas::layer::Cache::new(),
             next_frame_button: Default::default(),
             prev_frame_button: Default::default(),
         }
@@ -58,7 +56,7 @@ impl SupViewer {
 }
 
 impl Application for SupViewer {
-    type Executor = executor::Null;
+    type Executor = executor::Default;
     type Flags = Vec<DisplaySet>;
     type Message = Message;
 
@@ -71,16 +69,14 @@ impl Application for SupViewer {
     }
 
     fn view(&mut self) -> Element<Message> {
-        self.current_frame = self.state.frames[self.state.current_frame].clone();
+        self.current_frame =
+            DisplaySetView::new(self.state.frames[self.state.current_frame].clone());
 
-        let ods = self.current_frame.ods();
+        let ods = self.current_frame.ds().ods();
         let w = ods.width;
         let h = ods.height;
 
-        let canvas = Canvas::new()
-            .width(Length::Units(w))
-            .height(Length::Units(h))
-            .push(self.current_frame_canvas_cache.with(&self.current_frame));
+        let canvas = Canvas::new(&mut self.current_frame);
 
         let content = Column::new().padding(20).spacing(20).push(canvas).push(
             Row::new()

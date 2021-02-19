@@ -48,13 +48,15 @@ impl PaletteEntry {
                 self.cr as f64 / 255.0,
             ],
         );
+
         let rgb = conv_matrix * ycrcb;
 
+        // HACK: clamps should not be necessary
         [
-            *rgb.get(0, 0).unwrap() as f32,
-            *rgb.get(1, 0).unwrap() as f32,
-            *rgb.get(2, 0).unwrap() as f32,
-            self.alpha as f32 / 255.0,
+            (*rgb.get(0, 0).unwrap() as f32).clamp(0., 1.),
+            (*rgb.get(1, 0).unwrap() as f32).clamp(0., 1.),
+            (*rgb.get(2, 0).unwrap() as f32).clamp(0., 1.),
+            (self.alpha as f32 / 255.0).clamp(0., 1.),
         ]
     }
 }

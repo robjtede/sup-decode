@@ -245,5 +245,5 @@ fn main() {
     let mut settings = iced::Settings::default();
     settings.flags = frames;
 
-    ui::SupViewer::run(settings);
+    ui::SupViewer::run(settings).unwrap();
 }
