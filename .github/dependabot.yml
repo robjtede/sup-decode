@@ -5,29 +5,4 @@ updates:
   schedule:
     interval: daily
   open-pull-requests-limit: 10
-  ignore:
-  - dependency-name: image
-    versions:
-    - 0.23.12
-    - 0.23.13
-  - dependency-name: log
-    versions:
-    - 0.4.14
-  - dependency-name: byteorder
-    versions:
-    - 1.4.2
-  - dependency-name: iced_native
-    versions:
-    - 0.3.0
-  - dependency-name: chrono
-    versions:
-    - 0.4.19
-  - dependency-name: hex-literal
-    versions:
-    - 0.3.1
-  - dependency-name: iced_wgpu
-    versions:
-    - 0.2.3
-  - dependency-name: iced
-    versions:
-    - 0.1.1
+  ignore: []
