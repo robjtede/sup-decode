@@ -10,7 +10,7 @@ chrono = "0.4"
 log = "0.4"
 image = "0.23"
 iced = { version = "0.2.0", features = ["canvas"] }
-iced_native = "0.3.0"
+iced_native = "0.6.1"
 iced_wgpu = "0.3.0"
 simple-matrix = "0.1.2"
 
