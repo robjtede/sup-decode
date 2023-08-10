@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "packageRules": [
+    {
+      "matchManagers": ["cargo"],
+      "enabled": true,
+      "rangeStrategy": "in-range-only",
+      "schedule": ["every weekday"]
+    }
+  ]
+}
