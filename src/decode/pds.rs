@@ -3,8 +3,6 @@ use std::io::{Cursor, Read, Seek, SeekFrom};
 use byteorder::{BigEndian, ReadBytesExt};
 use log::trace;
 
-use simple_matrix::Matrix;
-
 #[derive(Debug, Clone)]
 pub struct PaletteDefinition {
     pub id: u8,
@@ -33,30 +31,32 @@ impl PaletteEntry {
     }
 
     pub fn rgba(&self) -> [f32; 4] {
-        let conv_matrix = Matrix::from_iter(
-            3,
-            3,
-            vec![1.0f64, 1., 1., 0., -0.1873, 1.8556, 1.5748, -0.4682, 0.],
-        );
+        let Self {
+            id: _,
+            y,
+            cb,
+            cr,
+            alpha,
+        } = self;
 
-        let ycrcb = Matrix::from_iter(
-            3,
-            1,
-            vec![
-                self.y as f64 / 255.0,
-                self.cb as f64 / 255.0,
-                self.cr as f64 / 255.0,
-            ],
-        );
+        let y = *y as f32;
+        let cb = *cb as f32;
+        let cr = *cr as f32;
+        let alpha = *alpha as f32;
 
-        let rgb = conv_matrix * ycrcb;
+        let r = 1.164 * (y - 16.0) + 1.596 * (cr - 128.0);
+        let g = 1.164 * (y - 16.0) - 0.392 * (cb - 128.0) - 0.813 * (cr - 128.0);
+        let b = 1.164 * (y - 16.0) + 2.017 * (cb - 128.0);
 
-        // HACK: clamps should not be necessary
+        // println!("y={y}, cb={cb}, cr={cr}");
+        // println!("r={r}, g={g}, b={b}");
+        // println!();
+
         [
-            (*rgb.get(0, 0).unwrap() as f32).clamp(0., 1.),
-            (*rgb.get(1, 0).unwrap() as f32).clamp(0., 1.),
-            (*rgb.get(2, 0).unwrap() as f32).clamp(0., 1.),
-            (self.alpha as f32 / 255.0).clamp(0., 1.),
+            (r / 255.0).clamp(0.0, 1.0),
+            (g / 255.0).clamp(0.0, 1.0),
+            (b / 255.0).clamp(0.0, 1.0),
+            (alpha / 255.0).clamp(0.0, 1.0),
         ]
     }
 }

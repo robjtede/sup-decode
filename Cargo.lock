@@ -3201,12 +3201,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "simple-matrix"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6927a3d2ea606d10c38c7b923e108e29a2f47ca287e1cb707fa898ce4d58aa7c"
-
-[[package]]
 name = "siphasher"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3376,7 +3370,6 @@ dependencies = [
  "iced",
  "image",
  "log",
- "simple-matrix",
  "strum",
 ]
 

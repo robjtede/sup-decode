@@ -131,13 +131,12 @@ impl canvas::Program<Message> for SupViewer {
                     DEFAULT_RGBA
                 } else {
                     let colors = ds.pds().entries.clone();
-                    let color = colors
+
+                    colors
                         .iter()
                         .find(|entry| entry.id == *color_id)
-                        .map(|ycrcb| ycrcb.rgba())
-                        .unwrap_or(DEFAULT_RGBA);
-
-                    color
+                        .map(|y_cr_cb| y_cr_cb.rgba())
+                        .unwrap_or(DEFAULT_RGBA)
                 };
 
                 let point = canvas::Path::new(|path| {
