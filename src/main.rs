@@ -3,17 +3,18 @@
 use std::{
     env, fs,
     io::{Cursor, Read, Seek, SeekFrom},
+    mem,
 };
 
 use iced::Application as _;
 
 use byteorder::{BigEndian, ReadBytesExt};
 use chrono::NaiveTime;
+use strum::IntoDiscriminant as _;
 
 mod decode;
 mod segment;
 mod ui;
-mod widgets;
 
 fn convert_ts(ts: u32) -> NaiveTime {
     let millis = ts / 90;
@@ -59,7 +60,7 @@ enum SegmentType {
     END,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, strum::EnumDiscriminants)]
 enum Segment {
     Pcs(NaiveTime, decode::pcs::PresentationComposition),
     Wds(NaiveTime, Vec<decode::wds::WindowDefinition>),
@@ -130,8 +131,8 @@ fn main() -> iced::Result {
     let bytes = fs::read(file).unwrap();
     let bytes_len = bytes.len();
 
-    let mut segments: Vec<Segment> = vec![];
-    let mut display_sets: Vec<DisplaySet> = vec![];
+    let mut segments = Vec::<Segment>::new();
+    let mut display_sets = Vec::<DisplaySet>::new();
 
     let mut c = Cursor::new(bytes);
 
@@ -185,6 +186,8 @@ fn main() -> iced::Result {
 
     let mut running_ds = DisplaySet::empty();
     for segment in segments {
+        // println!("{:?}", segment.discriminant());
+
         match segment {
             Segment::Pcs(pts, seg) => {
                 running_ds.pts = Some(pts);
@@ -203,11 +206,12 @@ fn main() -> iced::Result {
             Segment::End => {
                 display_sets.push(running_ds);
                 running_ds = DisplaySet::empty();
+                // println!();
             }
         }
     }
 
-    println!("processed {} segments", segs_len);
+    println!("processed {segs_len} segments");
     println!("processed {} display sets", display_sets.len());
 
     let frames: Vec<_> = display_sets

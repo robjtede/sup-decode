@@ -57,7 +57,7 @@ pub fn decode_rle<T: AsRef<[u8]>>(data: T) -> Vec<u8> {
 
         let len = if big_len {
             let len2_u8 = c.read_u8().unwrap();
-            println!("low len: {}", len2_u8);
+            // println!("low len: {}", len2_u8);
             let buf = [len_u8, len2_u8];
             BigEndian::read_u16(&buf)
         } else {
@@ -71,7 +71,7 @@ pub fn decode_rle<T: AsRef<[u8]>>(data: T) -> Vec<u8> {
             0
         };
 
-        println!("{} colored {}", len, color);
+        // println!("{} colored {}", len, color);
         for x in 0..len {
             output.push(color);
         }

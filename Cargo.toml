@@ -12,6 +12,7 @@ log = "0.4"
 image = "0.25"
 iced = { version = "0.13", features = ["canvas"] }
 simple-matrix = "0.1.2"
+strum = { version = "0.27", features = ["derive"] }
 
 [dev-dependencies]
 hex-literal = "1"
