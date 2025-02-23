@@ -76,8 +76,17 @@ pub enum DisplaySetState {
     Complete,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct DisplaySet {
+    pts: NaiveTime,
+    pcs: decode::pcs::PresentationComposition,
+    wds: Vec<decode::wds::WindowDefinition>,
+    pds: decode::pds::PaletteDefinition,
+    ods: decode::ods::ObjectDefinition,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct DisplaySetBuilder {
     pts: Option<NaiveTime>,
     pcs: Option<decode::pcs::PresentationComposition>,
     wds: Vec<decode::wds::WindowDefinition>,
@@ -85,8 +94,8 @@ pub struct DisplaySet {
     ods: Option<decode::ods::ObjectDefinition>,
 }
 
-impl DisplaySet {
-    pub fn empty() -> Self {
+impl DisplaySetBuilder {
+    pub fn new() -> Self {
         Self {
             pts: None,
             pcs: None,
@@ -112,16 +121,14 @@ impl DisplaySet {
         DisplaySetState::Incomplete
     }
 
-    pub fn pts(&self) -> NaiveTime {
-        self.pts.unwrap()
-    }
-
-    pub fn ods(&self) -> &decode::ods::ObjectDefinition {
-        self.ods.as_ref().unwrap()
-    }
-
-    pub fn pds(&self) -> &decode::pds::PaletteDefinition {
-        self.pds.as_ref().unwrap()
+    pub fn build(self) -> DisplaySet {
+        DisplaySet {
+            pts: self.pts.unwrap(),
+            pcs: self.pcs.unwrap(),
+            wds: self.wds,
+            pds: self.pds.unwrap(),
+            ods: self.ods.unwrap(),
+        }
     }
 }
 
@@ -132,7 +139,7 @@ fn main() -> iced::Result {
     let bytes_len = bytes.len();
 
     let mut segments = Vec::<Segment>::new();
-    let mut display_sets = Vec::<DisplaySet>::new();
+    let mut display_sets = Vec::<DisplaySetBuilder>::new();
 
     let mut c = Cursor::new(bytes);
 
@@ -184,7 +191,7 @@ fn main() -> iced::Result {
 
     let segs_len = segments.len();
 
-    let mut running_ds = DisplaySet::empty();
+    let mut running_ds = DisplaySetBuilder::new();
     for segment in segments {
         // println!("{:?}", segment.discriminant());
 
@@ -205,7 +212,7 @@ fn main() -> iced::Result {
             }
             Segment::End => {
                 display_sets.push(running_ds);
-                running_ds = DisplaySet::empty();
+                running_ds = DisplaySetBuilder::new();
                 // println!();
             }
         }
@@ -214,10 +221,11 @@ fn main() -> iced::Result {
     println!("processed {segs_len} segments");
     println!("processed {} display sets", display_sets.len());
 
-    let frames: Vec<_> = display_sets
-        .iter()
-        .filter(|&x| x.state() == DisplaySetState::Complete)
-        .collect();
+    let frames = display_sets
+        .into_iter()
+        .filter(|x| x.state() == DisplaySetState::Complete)
+        .map(|x| x.build())
+        .collect::<Vec<_>>();
     let num_frames = frames.len();
 
     println!("processed {} frames", frames.len());
@@ -242,11 +250,7 @@ fn main() -> iced::Result {
     //     .unwrap();
     // }
 
-    let frames = frames.into_iter().cloned().collect();
-
     iced::application("sup-decode", ui::SupViewer::update, ui::SupViewer::view)
-        // .subscription(ui::SupViewer::subscription)
-        .antialiasing(true)
         .centered()
         .run_with(|| ui::SupViewer::new(frames))
 }

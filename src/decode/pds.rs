@@ -1,4 +1,7 @@
-use std::io::{Cursor, Read, Seek, SeekFrom};
+use std::{
+    fmt,
+    io::{Cursor, Read, Seek, SeekFrom},
+};
 
 use byteorder::{BigEndian, ReadBytesExt};
 use log::trace;
@@ -53,10 +56,10 @@ impl PaletteEntry {
         // println!();
 
         [
-            (r / 255.0).clamp(0.0, 1.0),
-            (g / 255.0).clamp(0.0, 1.0),
-            (b / 255.0).clamp(0.0, 1.0),
-            (alpha / 255.0).clamp(0.0, 1.0),
+            r.clamp(0.0, 255.0) / 255.0,
+            g.clamp(0.0, 255.0) / 255.0,
+            b.clamp(0.0, 255.0) / 255.0,
+            alpha.clamp(0.0, 255.0) / 255.0,
         ]
     }
 }
@@ -76,6 +79,8 @@ pub fn decode_pds(data: &[u8]) -> PaletteDefinition {
 
     assert_eq!(entry_data.len() % 5, 0);
     let num_entries = entry_data.len() / 5;
+
+    println!("parsing palette {palette_id} version {version} ({num_entries} entries)");
 
     let mut c = Cursor::new(entry_data);
 

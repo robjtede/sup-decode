@@ -10,7 +10,7 @@ use iced::{
     },
 };
 
-use crate::DisplaySet;
+use crate::{DisplaySet, DisplaySetBuilder};
 
 const DEFAULT_RGBA: [f32; 4] = [0.0, 0.0, 0.0, 0.0];
 
@@ -42,7 +42,7 @@ impl SupViewer {
     pub(crate) fn view(&self) -> Element<Message> {
         let ds = &self.frames[self.current_frame];
 
-        let ods = ds.ods();
+        let ods = &ds.ods;
         let w = ods.width;
         let h = ods.height;
 
@@ -119,7 +119,7 @@ impl canvas::Program<Message> for SupViewer {
                 },
             );
 
-            let ods = ds.ods();
+            let ods = &ds.ods;
             let w = ods.width;
             let data = &ods.data;
 
@@ -130,13 +130,16 @@ impl canvas::Program<Message> for SupViewer {
                 let color = if *color_id == 0 {
                     DEFAULT_RGBA
                 } else {
-                    let colors = ds.pds().entries.clone();
+                    let colors = ds.pds.entries.clone();
 
                     colors
                         .iter()
                         .find(|entry| entry.id == *color_id)
                         .map(|y_cr_cb| y_cr_cb.rgba())
-                        .unwrap_or(DEFAULT_RGBA)
+                        .unwrap_or_else(|| {
+                            // eprintln!("using default color instead of {color_id}");
+                            DEFAULT_RGBA
+                        })
                 };
 
                 let point = canvas::Path::new(|path| {
