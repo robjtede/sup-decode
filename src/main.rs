@@ -130,9 +130,6 @@ fn main() -> iced::Result {
     let bytes = fs::read(file).unwrap();
     let bytes_len = bytes.len();
 
-    // let segments_raw = segment::segment_on(&bytes, &[0x50, 0x47]);
-    // let segs_len = segments_raw.len();
-
     let mut segments: Vec<Segment> = vec![];
     let mut display_sets: Vec<DisplaySet> = vec![];
 
@@ -164,7 +161,7 @@ fn main() -> iced::Result {
             0x16 => SegmentType::PCS,
             0x17 => SegmentType::WDS,
             0x80 => SegmentType::END,
-            byte => panic!("invalid segment type {:?}", byte),
+            byte => panic!("invalid segment type {byte:?}"),
         };
 
         let segment_size = c.read_u16::<BigEndian>().unwrap();

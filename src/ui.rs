@@ -31,9 +31,6 @@ pub enum Message {
 #[derive(Debug)]
 pub struct SupViewer {
     state: State,
-
-    // next_frame_button: button::State,
-    // prev_frame_button: button::State,
     current_frame: DisplaySetView,
 }
 
@@ -52,9 +49,9 @@ impl SupViewer {
         let current_frame =
             DisplaySetView::new(self.state.frames[self.state.current_frame].clone());
 
-        let ods = self.current_frame.ds().ods();
-        let w = ods.width;
-        let h = ods.height;
+        // let ods = self.current_frame.ds().ods();
+        // let w = ods.width;
+        // let h = ods.height;
 
         let canvas = Canvas::new(current_frame);
 
