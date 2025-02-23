@@ -1,13 +1,9 @@
-use canvas::FillRule;
-use iced::canvas::{Fill, Frame, Path, Program, Stroke};
 use iced::widget::*;
-use iced_native::{
-    layout, Background, Color, Element, Hasher, Layout, Length, Point, Rectangle, Size, Widget,
-};
-use iced_wgpu::{Defaults, Primitive, Renderer};
+use iced::{Background, Color, Element, Length, Point, Rectangle, Size};
+// use iced_wgpu::Primitive;
 
-use crate::ui::Message;
 use crate::DisplaySet;
+use crate::ui::Message;
 
 const DEFAULT_RGBA: [f32; 4] = [0.0, 0.0, 0.0, 0.0];
 
@@ -31,17 +27,26 @@ impl DisplaySetView {
 }
 
 impl canvas::Program<Message> for DisplaySetView {
-    fn draw(&self, bounds: Rectangle, cursor: canvas::Cursor) -> Vec<canvas::Geometry> {
-        let display_set = self.cache.draw(bounds.size(), |frame| {
+    type State = ();
+
+    fn draw(
+        &self,
+        state: &Self::State,
+        renderer: &Renderer,
+        theme: &Theme,
+        bounds: iced::Rectangle,
+        cursor: iced_wgpu::core::mouse::Cursor,
+    ) -> Vec<canvas::Geometry<Renderer>> {
+        let display_set = self.cache.draw(renderer, bounds.size(), |frame| {
             // fill background black
-            let bg = Path::new(|path| path.rectangle(Point::new(0.0, 0.0), frame.size()));
-            frame.fill(
-                &bg,
-                Fill {
-                    color: Color::BLACK,
-                    rule: FillRule::NonZero,
-                },
-            );
+            // let bg = canvas::Path::new(|path| path.rectangle(Point::new(0.0, 0.0), frame.size()));
+            // frame.fill(
+            //     &bg,
+            //     canvas::Fill {
+            //         style: Color::BLACK.into(),
+            //         rule: canvas::path::lyon_path::FillRule::NonZero,
+            //     },
+            // );
 
             let ods = self.ds.ods();
             let w = ods.width;
@@ -51,8 +56,8 @@ impl canvas::Program<Message> for DisplaySetView {
                 let x = (i % w as usize) as u16;
                 let y = (i / w as usize) as u16;
 
-                let color: Color = if *color_id == 0 {
-                    DEFAULT_RGBA.into()
+                let color = if *color_id == 0 {
+                    DEFAULT_RGBA
                 } else {
                     let colors = self.ds.pds().entries.clone();
                     let color = colors
@@ -61,17 +66,17 @@ impl canvas::Program<Message> for DisplaySetView {
                         .map(|ycrcb| ycrcb.rgba())
                         .unwrap_or(DEFAULT_RGBA);
 
-                    color.into()
+                    color
                 };
 
-                let point = Path::new(|path| {
-                    path.rectangle(Point::new(f32::from(x), f32::from(y)), [1, 1].into())
+                let point = canvas::Path::new(|path| {
+                    path.rectangle(Point::new(f32::from(x), f32::from(y)), Size::new(1.0, 1.0))
                 });
                 frame.fill(
                     &point,
-                    Fill {
-                        color,
-                        rule: FillRule::NonZero,
+                    canvas::Fill {
+                        style: canvas::Style::Solid(Color::from(color)),
+                        rule: canvas::fill::Rule::NonZero,
                     },
                 );
             }

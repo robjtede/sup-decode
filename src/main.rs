@@ -20,7 +20,7 @@ fn convert_ts(ts: u32) -> NaiveTime {
     let seconds = millis / 1000;
     let nanos = (millis % 1000) * 1_000_000;
 
-    NaiveTime::from_num_seconds_from_midnight(seconds, nanos)
+    NaiveTime::from_num_seconds_from_midnight_opt(seconds, nanos).unwrap()
 }
 
 // Codec information taken from:
@@ -41,6 +41,7 @@ fn convert_ts(ts: u32) -> NaiveTime {
 // Segment Size    2        Size of the segment
 
 #[derive(Debug, Clone, Copy)]
+#[expect(clippy::upper_case_acronyms)]
 enum SegmentType {
     /// Presentation Composition Segment
     PCS,
@@ -123,7 +124,7 @@ impl DisplaySet {
     }
 }
 
-fn main() {
+fn main() -> iced::Result {
     let mut args = env::args();
     let file = args.nth(1).unwrap();
     let bytes = fs::read(file).unwrap();
@@ -240,10 +241,11 @@ fn main() {
     //     .unwrap();
     // }
 
-    let frames: Vec<DisplaySet> = frames.into_iter().cloned().collect();
+    let frames = frames.into_iter().cloned().collect();
 
-    let mut settings = iced::Settings::default();
-    settings.flags = frames;
-
-    ui::SupViewer::run(settings).unwrap();
+    iced::application("sup-decode", ui::SupViewer::update, ui::SupViewer::view)
+        // .subscription(ui::SupViewer::subscription)
+        .antialiasing(true)
+        .centered()
+        .run_with(|| ui::SupViewer::new(frames))
 }

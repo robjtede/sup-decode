@@ -1,8 +1,11 @@
 use std::cmp;
 
-use iced::*;
+use iced::{
+    Element, Task,
+    widget::{Button, Canvas, Column, Container, Row, Text, button, column, text},
+};
 
-use crate::{widgets::DisplaySetView, DisplaySet};
+use crate::{DisplaySet, widgets::DisplaySetView};
 
 #[derive(Debug, Clone, Default)]
 struct State {
@@ -29,95 +32,66 @@ pub enum Message {
 pub struct SupViewer {
     state: State,
 
-    next_frame_button: button::State,
-    prev_frame_button: button::State,
-
+    // next_frame_button: button::State,
+    // prev_frame_button: button::State,
     current_frame: DisplaySetView,
 }
 
-impl Default for SupViewer {
-    fn default() -> Self {
-        Self {
-            state: Default::default(),
-            current_frame: Default::default(),
-            next_frame_button: Default::default(),
-            prev_frame_button: Default::default(),
-        }
-    }
-}
-
 impl SupViewer {
-    pub fn with_frames(frames: Vec<DisplaySet>) -> Self {
-        Self {
-            state: State::new(frames),
-            ..Default::default()
-        }
-    }
-}
-
-impl Application for SupViewer {
-    type Executor = executor::Default;
-    type Flags = Vec<DisplaySet>;
-    type Message = Message;
-
-    fn new(init_frames: Self::Flags) -> (Self, Command<Self::Message>) {
-        (SupViewer::with_frames(init_frames), Command::none())
+    pub(crate) fn new(frames: Vec<DisplaySet>) -> (Self, Task<Message>) {
+        (
+            Self {
+                state: State::new(frames),
+                current_frame: DisplaySetView::default(),
+            },
+            Task::none(),
+        )
     }
 
-    fn title(&self) -> String {
-        "sup viewer".to_owned()
-    }
-
-    fn view(&mut self) -> Element<Message> {
-        self.current_frame =
+    pub(crate) fn view(&self) -> Element<Message> {
+        let current_frame =
             DisplaySetView::new(self.state.frames[self.state.current_frame].clone());
 
         let ods = self.current_frame.ds().ods();
         let w = ods.width;
         let h = ods.height;
 
-        let canvas = Canvas::new(&mut self.current_frame);
+        let canvas = Canvas::new(current_frame);
 
-        let content = Column::new().padding(20).spacing(20).push(canvas).push(
-            Row::new()
-                .max_width(400)
-                .spacing(20)
-                .align_items(Align::Center)
-                .push(
-                    Button::new(&mut self.prev_frame_button, Text::new("prev"))
-                        .on_press(Message::PrevFrame),
-                )
-                .push(Text::new(format!(
-                    "{} / {}",
-                    self.state.current_frame.to_string(),
-                    self.state.frames.len().to_string()
-                )))
-                .push(
-                    Button::new(&mut self.next_frame_button, Text::new("next"))
-                        .on_press(Message::NextFrame),
-                ),
-        );
+        let content = column![
+            canvas,
+            // Row::new()
+            //     // .max_width(400)
+            //     .spacing(20)
+            //     .align_items(Align::Center)
+            //     .push(button("prev").on_press(Message::PrevFrame))
+            //     .push(text(format!(
+            //         "{} / {}",
+            //         self.state.current_frame.to_string(),
+            //         self.state.frames.len().to_string()
+            //     )))
+            //     .push(button("next").on_press(Message::NextFrame)),
+        ];
 
-        Container::new(content)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .into()
+        // Container::new(content)
+        //     .width(Length::Fill)
+        //     .height(Length::Fill)
+        //     .into()
+
+        content.into()
     }
 
-    fn update(&mut self, message: Message) -> Command<Self::Message> {
+    pub(crate) fn update(&mut self, message: Message) {
         let frames = self.state.frames.len();
 
         match message {
-            _ if frames == 0 => Command::none(),
-            Message::PrevFrame if self.state.current_frame <= 0 => Command::none(),
+            _ if frames == 0 => {}
             Message::PrevFrame => {
-                self.state.current_frame = self.state.current_frame - 1;
-                Command::none()
+                self.state.current_frame -= 1;
             }
-            Message::NextFrame if self.state.current_frame >= frames - 1 => Command::none(),
+            Message::NextFrame if self.state.current_frame >= frames - 1 => {}
             Message::NextFrame => {
-                self.state.current_frame = self.state.current_frame + 1;
-                Command::none()
+                self.state.current_frame += 1;
             }
         }
     }
