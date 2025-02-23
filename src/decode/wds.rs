@@ -54,7 +54,7 @@ mod tests {
         // strip segment header
         let data = &data[13..];
 
-        let wds = decode_wds(&data);
+        let wds = decode_wds(data);
 
         assert_eq!(wds.len(), 2);
 

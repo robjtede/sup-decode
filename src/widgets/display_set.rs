@@ -1,6 +1,6 @@
+use iced::mouse::Cursor;
 use iced::widget::*;
 use iced::{Background, Color, Element, Length, Point, Rectangle, Size};
-// use iced_wgpu::Primitive;
 
 use crate::DisplaySet;
 use crate::ui::Message;
@@ -35,7 +35,7 @@ impl canvas::Program<Message> for DisplaySetView {
         renderer: &Renderer,
         theme: &Theme,
         bounds: iced::Rectangle,
-        cursor: iced_wgpu::core::mouse::Cursor,
+        cursor: Cursor,
     ) -> Vec<canvas::Geometry<Renderer>> {
         let display_set = self.cache.draw(renderer, bounds.size(), |frame| {
             // fill background black

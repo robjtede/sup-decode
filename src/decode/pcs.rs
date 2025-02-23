@@ -124,7 +124,7 @@ mod tests {
         07 80 04 38 10 04 42 80 00 00 01
         00 00 00 40 02 4c 03 64"
         );
-        let pcs = decode_pcs(data.to_vec());
+        let pcs = decode_pcs(data);
 
         assert_eq!(pcs.comp_no, 1090);
         assert_eq!(pcs.comp_state, CompositionState::EpochStart);
@@ -134,6 +134,6 @@ mod tests {
         assert_eq!(pcs.height, 1080);
 
         assert_eq!(pcs.palette_id, 0);
-        assert_eq!(pcs.palette_update, false);
+        assert!(!pcs.palette_update);
     }
 }

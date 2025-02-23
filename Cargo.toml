@@ -11,9 +11,7 @@ chrono = "0.4"
 log = "0.4"
 image = "0.23"
 iced = { version = "0.13", features = ["canvas"] }
-iced_native = "0.10"
-iced_wgpu = "0.13"
 simple-matrix = "0.1.2"
 
 [dev-dependencies]
-hex-literal = "0.3"
+hex-literal = "1"

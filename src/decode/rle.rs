@@ -90,27 +90,27 @@ mod tests {
 
     #[test]
     fn long_indicator() {
-        assert_eq!(is_long(0b1100_0000), true);
-        assert_eq!(is_long(0b1111_1111), true);
-        assert_eq!(is_long(0b1000_0000), false);
-        assert_eq!(is_long(0b1011_1111), false);
-        assert_eq!(is_long(0b0100_0000), true);
-        assert_eq!(is_long(0b0111_1111), true);
-        assert_eq!(is_long(0b0000_0000), false);
-        assert_eq!(is_long(0b0011_1111), false);
+        assert!(is_long(0b1100_0000));
+        assert!(is_long(0b1111_1111));
+        assert!(!is_long(0b1000_0000));
+        assert!(!is_long(0b1011_1111));
+        assert!(is_long(0b0100_0000));
+        assert!(is_long(0b0111_1111));
+        assert!(!is_long(0b0000_0000));
+        assert!(!is_long(0b0011_1111));
     }
 
     #[test]
     fn color_indicator() {
-        assert_eq!(is_color(0b1000_0000), true);
-        assert_eq!(is_color(0b1111_1111), true);
-        assert_eq!(is_color(0b0000_0000), false);
-        assert_eq!(is_color(0b0111_1111), false);
+        assert!(is_color(0b1000_0000));
+        assert!(is_color(0b1111_1111));
+        assert!(!is_color(0b0000_0000));
+        assert!(!is_color(0b0111_1111));
     }
 
     #[test]
     fn single_pixel() {
-        assert_eq!(decode_rle(vec![0b01]).to_vec(), vec![0b01].to_vec());
+        assert_eq!(decode_rle(vec![0b01]).to_vec(), [0b01].to_vec());
     }
 
     #[test]

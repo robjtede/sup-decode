@@ -107,7 +107,7 @@ mod tests {
         // strip segment header
         let data = &data[13..];
 
-        let pds = decode_pds(&data);
+        let pds = decode_pds(data);
 
         assert_eq!(pds.id, 0);
         assert_eq!(pds.version, 0);
@@ -116,7 +116,7 @@ mod tests {
         let data = std::fs::read("data/test/pds2.dat").unwrap();
         let data = &data[13..];
 
-        let pds = decode_pds(&data);
+        let pds = decode_pds(data);
 
         assert_eq!(pds.id, 0);
         assert_eq!(pds.version, 0);
