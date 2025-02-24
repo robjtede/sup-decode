@@ -6,14 +6,42 @@ use std::{
 use byteorder::{BigEndian, ReadBytesExt};
 use log::trace;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct PaletteDefinition {
     pub id: u8,
     pub version: u8,
     pub entries: Vec<PaletteEntry>,
 }
 
-#[derive(Debug, Clone)]
+impl PaletteDefinition {
+    pub(crate) fn find_by_id(&self, id: u8) -> Option<&PaletteEntry> {
+        self.entries.iter().find(|entry| entry.id == id)
+    }
+}
+
+impl fmt::Debug for PaletteDefinition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "id={} version={} ({} entries)",
+            self.id,
+            self.version,
+            self.entries.len(),
+        )?;
+
+        if f.alternate() {
+            writeln!(f)?;
+
+            for entry in &self.entries {
+                writeln!(f, "  {entry:?}")?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Clone)]
 pub struct PaletteEntry {
     pub id: u8,
     pub y: u8,     // (Y) Luminance
@@ -23,7 +51,7 @@ pub struct PaletteEntry {
 }
 
 impl PaletteEntry {
-    pub fn new(id: u8, y: u8, cr: u8, cb: u8, alpha: u8) -> Self {
+    pub(crate) fn new(id: u8, y: u8, cr: u8, cb: u8, alpha: u8) -> Self {
         Self {
             id,
             y,
@@ -33,7 +61,7 @@ impl PaletteEntry {
         }
     }
 
-    pub fn rgba(&self) -> [f32; 4] {
+    pub(crate) fn rgba(&self) -> [f32; 4] {
         let Self {
             id: _,
             y,
@@ -64,6 +92,18 @@ impl PaletteEntry {
     }
 }
 
+impl fmt::Debug for PaletteEntry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "id={} YCbCrA={},{},{},{}",
+            self.id, self.y, self.cb, self.cr, self.alpha
+        )?;
+
+        Ok(())
+    }
+}
+
 pub fn decode_pds(data: &[u8]) -> PaletteDefinition {
     // trace!("{:x?}", &data);
     let mut c = Cursor::new(data);
@@ -79,8 +119,6 @@ pub fn decode_pds(data: &[u8]) -> PaletteDefinition {
 
     assert_eq!(entry_data.len() % 5, 0);
     let num_entries = entry_data.len() / 5;
-
-    println!("parsing palette {palette_id} version {version} ({num_entries} entries)");
 
     let mut c = Cursor::new(entry_data);
 

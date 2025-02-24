@@ -138,8 +138,8 @@ fn main() -> iced::Result {
     let bytes = fs::read(file).unwrap();
     let bytes_len = bytes.len();
 
-    let mut segments = Vec::<Segment>::new();
-    let mut display_sets = Vec::<DisplaySetBuilder>::new();
+    let mut segments = Vec::new();
+    let mut display_sets = Vec::new();
 
     let mut c = Cursor::new(bytes);
 
@@ -148,7 +148,7 @@ fn main() -> iced::Result {
             break;
         }
 
-        println!("processing segment at: {:#X}", c.position());
+        print!("processing segment at: {:#X} - ", c.position());
 
         // skip PG magic number
         let mut magic = [0u8; 2];
@@ -162,8 +162,8 @@ fn main() -> iced::Result {
         // DTS is always 0
         c.seek(SeekFrom::Current(4)).unwrap();
 
-        let segtype = c.read_u8().unwrap();
-        let segtype = match segtype {
+        let seg_type = c.read_u8().unwrap();
+        let seg_type = match seg_type {
             0x14 => SegmentType::PDS,
             0x15 => SegmentType::ODS,
             0x16 => SegmentType::PCS,
@@ -174,16 +174,36 @@ fn main() -> iced::Result {
 
         let segment_size = c.read_u16::<BigEndian>().unwrap();
 
-        let mut segdata = vec![0u8; segment_size as usize];
-        c.read_exact(&mut segdata).unwrap();
-        assert_eq!(segment_size as usize, segdata.len());
+        let mut seg_data = vec![0u8; segment_size as usize];
+        c.read_exact(&mut seg_data).unwrap();
+        assert_eq!(segment_size as usize, seg_data.len());
 
-        let segment = match segtype {
-            SegmentType::PCS => Segment::Pcs(pts, decode::pcs(segdata)),
-            SegmentType::WDS => Segment::Wds(pts, decode::wds(&segdata)),
-            SegmentType::PDS => Segment::Pds(pts, decode::pds(&segdata)),
-            SegmentType::ODS => Segment::Ods(pts, decode::ods(segdata)),
-            SegmentType::END => Segment::End,
+        let segment = match seg_type {
+            SegmentType::PCS => {
+                let seg = decode::pcs(seg_data);
+                println!("PCS {seg:#?}");
+                Segment::Pcs(pts, seg)
+            }
+            SegmentType::WDS => {
+                let seg = decode::wds(&seg_data);
+                println!("WDS: {} windows", seg.len());
+                Segment::Wds(pts, seg)
+            }
+            SegmentType::PDS => {
+                let seg = decode::pds(&seg_data);
+                println!("PDS {seg:?}");
+                Segment::Pds(pts, seg)
+            }
+            SegmentType::ODS => {
+                let seg = decode::ods(seg_data);
+                println!("ODS {seg:?}");
+                Segment::Ods(pts, seg)
+            }
+            SegmentType::END => {
+                println!("END");
+                println!();
+                Segment::End
+            }
         };
 
         segments.push(segment);

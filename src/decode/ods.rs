@@ -1,10 +1,13 @@
-use std::io::{Cursor, Read, Seek, SeekFrom};
+use std::{
+    fmt,
+    io::{Cursor, Read, Seek, SeekFrom},
+};
 
 use byteorder::{BigEndian, ReadBytesExt};
 
 use crate::decode;
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Clone, Hash)]
 pub struct ObjectDefinition {
     pub id: u16,
     pub version: u8,
@@ -12,6 +15,12 @@ pub struct ObjectDefinition {
     pub width: u16,
     pub height: u16,
     pub data: Vec<u8>,
+}
+
+impl fmt::Debug for ObjectDefinition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "id={}", self.id)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash)]

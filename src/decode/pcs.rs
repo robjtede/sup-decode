@@ -1,4 +1,7 @@
-use std::io::{Cursor, Read, Seek, SeekFrom};
+use std::{
+    fmt,
+    io::{Cursor, Read, Seek, SeekFrom},
+};
 
 use byteorder::{BigEndian, ReadBytesExt};
 
@@ -29,12 +32,31 @@ use byteorder::{BigEndian, ReadBytesExt};
 // Object Cropping Horizontal Position    2        X offset from the top left pixel of the cropped object in the screen. Only used when the Object Cropped Flag is set to 0x40.
 // Object Cropping Vertical Position      2        Y offset from the top left pixel of the cropped object in the screen. Only used when the Object Cropped Flag is set to 0x40.
 // Object Cropping Width                  2        Width of the cropped object in the screen. Only used when the Object Cropped Flag is set to 0x40.
-// Object Cropping Height Position        2        Heightl of the cropped object in the screen. Only used when the Object Cropped Flag is set to 0x40.
+// Object Cropping Height Position        2        Height of the cropped object in the screen. Only used when the Object Cropped Flag is set to 0x40.
 
 // When the Object Cropped Flag is set to true (or actually 0x40), then the sub picture is cropped to show only a portion of it. This is used for example when you don’t want to show the whole subtitle at first, but just a few words first, and then the rest.
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum CompositionState {
+    /// This defines a new display. The Epoch Start contains all functional segments needed to
+    /// display a new composition on the screen.
+    EpochStart,
+
+    /// This defines a display refresh. This is used to compose in the middle of the Epoch. It
+    /// includes functional segments with new objects to be used in a new composition, replacing old
+    /// objects with the same Object ID.
+    AcquisitionPoint,
+
+    /// This defines a display update, and contains only functional segments with elements that are
+    /// different from the preceding composition. It’s mostly used to stop displaying objects on the
+    /// screen by defining a composition with no composition objects (a value of zero in the Number
+    /// of Composition Objects flag) but also used to define a new composition with new objects and
+    /// objects defined since the Epoch Start.
+    Normal,
+}
+
 /// Presentation Composition Segment
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct PresentationComposition {
     pub comp_no: u16,
     pub comp_state: CompositionState,
@@ -46,29 +68,74 @@ pub struct PresentationComposition {
     pub composition_objects: Vec<CompositionObject>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum CompositionState {
-    /// This defines a new display. The Epoch Start contains all functional segments needed to display a new composition on the screen.
-    EpochStart,
-
-    /// This defines a display refresh. This is used to compose in the middle of the Epoch. It includes functional segments with new objects to be used in a new composition, replacing old objects with the same Object ID.
-    AcquisitionPoint,
-
-    /// This defines a display update, and contains only functional segments with elements that are different from the preceding composition. It’s mostly used to stop displaying objects on the screen by defining a composition with no composition objects (a value of zero in the Number of Composition Objects flag) but also used to define a new composition with new objects and objects defined since the Epoch Start.
-    Normal,
+impl PresentationComposition {
+    pub(crate) fn find_object_by_id(&self, id: u16) -> Option<&CompositionObject> {
+        self.composition_objects.iter().find(|obj| obj.id == id)
+    }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+impl fmt::Debug for PresentationComposition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "no={} state={:?}, size={}x{}, palette_id={}, palette_update={} ({} objects)",
+            self.comp_no,
+            self.comp_state,
+            self.width,
+            self.height,
+            self.palette_id,
+            self.palette_update,
+            self.num_comp_objects,
+        )?;
+
+        if f.alternate() && !self.composition_objects.is_empty() {
+            writeln!(f)?;
+
+            for obj in &self.composition_objects {
+                write!(f, "  {obj:?}")?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Clone, PartialEq)]
 pub struct CompositionObject {
-    id: u16,
-    window_id: u8,
-    x: u16,
-    y: u16,
-    cropped: bool,
-    crop_x: Option<u16>,
-    crop_y: Option<u16>,
-    crop_width: Option<u16>,
-    crop_height: Option<u16>,
+    pub(crate) id: u16,
+    pub(crate) window_id: u8,
+    pub(crate) cropped: bool,
+    pub(crate) x: u16,
+    pub(crate) y: u16,
+    pub(crate) crop_x: Option<u16>,
+    pub(crate) crop_y: Option<u16>,
+    pub(crate) crop_width: Option<u16>,
+    pub(crate) crop_height: Option<u16>,
+}
+
+impl fmt::Debug for CompositionObject {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "id={} window={}, x={}, y={}",
+            self.id, self.window_id, self.x, self.y,
+        )?;
+
+        if self.cropped {
+            write!(
+                f,
+                ", crop_x={}, crop_y={}, crop_width={}, crop_height={}",
+                self.crop_x.unwrap(),
+                self.crop_y.unwrap(),
+                self.crop_width.unwrap(),
+                self.crop_height.unwrap(),
+            )?;
+        } else {
+            write!(f, ", cropped={}", self.cropped)?;
+        }
+
+        Ok(())
+    }
 }
 
 pub fn decode_pcs<T: AsRef<[u8]>>(data: T) -> PresentationComposition {
@@ -87,17 +154,51 @@ pub fn decode_pcs<T: AsRef<[u8]>>(data: T) -> PresentationComposition {
         0x80 => CompositionState::EpochStart,
         0x40 => CompositionState::AcquisitionPoint,
         0x00 => CompositionState::Normal,
-        x => panic!("unknown composition state: {}", x),
+        byte => panic!("unknown composition state: {byte}"),
     };
 
     let palette_update = match c.read_u8().unwrap() {
         0x00 => false,
         0x80 => true,
-        x => panic!("unknown pallet update flag: {}", x),
+        byte => panic!("unknown pallet update flag: {byte}"),
     };
 
     let palette_id = c.read_u8().unwrap();
     let num_comp_objects = c.read_u8().unwrap();
+
+    let mut composition_objects = Vec::new();
+
+    for _ in 0..num_comp_objects {
+        let id = c.read_u16::<BigEndian>().unwrap();
+        let window_id = c.read_u8().unwrap();
+
+        let cropped = match c.read_u8().unwrap() {
+            0x40 => true,
+            0x00 => false,
+            byte => panic!("unknown object cropped flag: {byte}"),
+        };
+
+        let x = c.read_u16::<BigEndian>().unwrap();
+        let y = c.read_u16::<BigEndian>().unwrap();
+
+        let crop_x = cropped.then(|| c.read_u16::<BigEndian>().unwrap());
+        let crop_y = cropped.then(|| c.read_u16::<BigEndian>().unwrap());
+
+        let crop_width = cropped.then(|| c.read_u16::<BigEndian>().unwrap());
+        let crop_height = cropped.then(|| c.read_u16::<BigEndian>().unwrap());
+
+        composition_objects.push(CompositionObject {
+            id,
+            window_id,
+            cropped,
+            x,
+            y,
+            crop_x,
+            crop_y,
+            crop_width,
+            crop_height,
+        });
+    }
 
     PresentationComposition {
         comp_no,
@@ -107,8 +208,7 @@ pub fn decode_pcs<T: AsRef<[u8]>>(data: T) -> PresentationComposition {
         height,
         palette_id,
         palette_update,
-        // TODO: decode comp objects
-        composition_objects: vec![],
+        composition_objects,
     }
 }
 

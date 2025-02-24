@@ -12,7 +12,9 @@ use iced::{
 
 use crate::{DisplaySet, DisplaySetBuilder};
 
-const DEFAULT_RGBA: [f32; 4] = [0.0, 0.0, 0.0, 0.0];
+const TRANSPARENT: [f32; 4] = [0.0, 0.0, 0.0, 0.0];
+const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
+const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
@@ -42,11 +44,9 @@ impl SupViewer {
     pub(crate) fn view(&self) -> Element<Message> {
         let ds = &self.frames[self.current_frame];
 
-        let ods = &ds.ods;
-        let w = ods.width;
-        let h = ods.height;
-
-        let canvas = Canvas::new(self).width(w).height(h);
+        let canvas = Canvas::new(self)
+            .width(ds.pcs.width as f32)
+            .height(ds.pcs.height as f32);
 
         let back_button = button("prev").on_press(Message::PrevFrame);
         let next_button = button("next").on_press(Message::NextFrame);
@@ -124,26 +124,27 @@ impl canvas::Program<Message> for SupViewer {
             let data = &ods.data;
 
             for (i, color_id) in data.iter().enumerate() {
-                let x = (i % w as usize) as u16;
-                let y = (i / w as usize) as u16;
+                let w = w as usize;
+
+                let x = (i % w) as u16;
+                let y = (i / w) as u16;
 
                 let color = if *color_id == 0 {
-                    DEFAULT_RGBA
+                    BLACK
                 } else {
-                    let colors = ds.pds.entries.clone();
-
-                    colors
-                        .iter()
-                        .find(|entry| entry.id == *color_id)
+                    ds.pds
+                        .find_by_id(*color_id)
                         .map(|y_cr_cb| y_cr_cb.rgba())
-                        .unwrap_or_else(|| {
-                            // eprintln!("using default color instead of {color_id}");
-                            DEFAULT_RGBA
-                        })
+                        .unwrap_or_else(|| TRANSPARENT)
                 };
 
                 let point = canvas::Path::new(|path| {
-                    path.rectangle(Point::new(f32::from(x), f32::from(y)), Size::new(1.0, 1.0))
+                    let obj = ds.pcs.find_object_by_id(ods.id).unwrap();
+
+                    path.rectangle(
+                        Point::new((obj.x + x) as f32, (obj.y + y) as f32),
+                        Size::new(1.0, 1.0),
+                    )
                 });
                 frame.fill(
                     &point,
