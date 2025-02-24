@@ -121,7 +121,10 @@ impl fmt::Debug for CompositionObject {
             self.id, self.window_id, self.x, self.y,
         )?;
 
-        if self.cropped {
+        if self.cropped
+            // some real PGS files set cropped=true but don't include the data
+            && self.crop_x.is_some()
+        {
             write!(
                 f,
                 ", crop_x={}, crop_y={}, crop_width={}, crop_height={}",
@@ -181,11 +184,15 @@ pub fn decode_pcs<T: AsRef<[u8]>>(data: T) -> PresentationComposition {
         let x = c.read_u16::<BigEndian>().unwrap();
         let y = c.read_u16::<BigEndian>().unwrap();
 
-        let crop_x = cropped.then(|| c.read_u16::<BigEndian>().unwrap());
-        let crop_y = cropped.then(|| c.read_u16::<BigEndian>().unwrap());
+        let read_crop = cropped
+            // some real PGS files set cropped=true but don't include the data
+            && c.position() < data.len() as u64;
 
-        let crop_width = cropped.then(|| c.read_u16::<BigEndian>().unwrap());
-        let crop_height = cropped.then(|| c.read_u16::<BigEndian>().unwrap());
+        let crop_x = read_crop.then(|| c.read_u16::<BigEndian>().unwrap());
+        let crop_y = read_crop.then(|| c.read_u16::<BigEndian>().unwrap());
+
+        let crop_width = read_crop.then(|| c.read_u16::<BigEndian>().unwrap());
+        let crop_height = read_crop.then(|| c.read_u16::<BigEndian>().unwrap());
 
         composition_objects.push(CompositionObject {
             id,
