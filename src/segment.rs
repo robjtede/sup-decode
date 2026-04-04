@@ -1,4 +1,4 @@
-pub fn segment_on<'a>(bytes: &'a [u8], segmark: &'_ [u8]) -> Vec<&'a [u8]> {
+pub(crate) fn segment_on<'a>(bytes: &'a [u8], segmark: &'_ [u8]) -> Vec<&'a [u8]> {
     let split_len = segmark.len();
     let bytes_len = bytes.len();
 

@@ -3,23 +3,23 @@ use std::fmt;
 use winnow::{
     Bytes,
     binary::{be_u8, be_u16, be_u24},
-    combinator::{eof, repeat},
+    combinator::repeat,
     error::{ContextError, StrContext, StrContextValue},
     prelude::*,
     token::take,
 };
 
-use crate::decode;
+use crate::decode::rle::decode_rle;
 
 #[derive(Clone, Hash)]
-pub struct ObjectDefinition {
-    pub id: u16,
-    pub version: u8,
-    pub sequence_flag: SequenceFlag,
-    pub width: u16,
-    pub height: u16,
+pub(crate) struct ObjectDefinition {
+    pub(crate) id: u16,
+    pub(crate) version: u8,
+    pub(crate) sequence_flag: SequenceFlag,
+    pub(crate) width: u16,
+    pub(crate) height: u16,
     data_len: u32,
-    pub data: Vec<u8>,
+    pub(crate) data: Vec<u8>,
 }
 
 impl fmt::Debug for ObjectDefinition {
@@ -29,7 +29,7 @@ impl fmt::Debug for ObjectDefinition {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash)]
-pub enum SequenceFlag {
+pub(crate) enum SequenceFlag {
     Middle,
     First,
     Last,
@@ -70,7 +70,7 @@ fn parse_dimensions(input: &mut &Bytes) -> winnow::Result<(u16, u16)> {
 }
 
 fn decode_rle_stream(input: &mut &Bytes) -> winnow::Result<Vec<u8>> {
-    repeat(0.., decode::rle)
+    repeat(0.., decode_rle)
         .map(|chunks: Vec<Vec<u8>>| chunks.into_iter().flatten().collect())
         .context(StrContext::Label("ODS RLE data"))
         .parse_next(input)
@@ -102,32 +102,27 @@ fn parse_object_data(
     Ok((width, height, data))
 }
 
-pub fn decode_ods(input: &mut &Bytes) -> winnow::Result<ObjectDefinition> {
-    (
+pub(crate) fn decode_ods(input: &mut &Bytes) -> winnow::Result<ObjectDefinition> {
+    let (id, version, sequence_flag, data_len) = (
         be_u16.context(StrContext::Label("ODS object id")),
         be_u8.context(StrContext::Label("ODS version")),
         parse_sequence_flag,
         be_u24.context(StrContext::Label("ODS object data length")),
     )
         .context(StrContext::Label("ODS header"))
-        .parse_next(input)
-        .and_then(|(id, version, sequence_flag, data_len)| {
-            let (width, height, data) = parse_object_data(input, sequence_flag, data_len)?;
-            eof.context(StrContext::Expected(StrContextValue::Description(
-                "end of ODS input",
-            )))
-            .parse_next(input)?;
+        .parse_next(input)?;
 
-            Ok(ObjectDefinition {
-                id,
-                version,
-                sequence_flag,
-                width,
-                height,
-                data_len,
-                data,
-            })
-        })
+    let (width, height, data) = parse_object_data(input, sequence_flag, data_len)?;
+
+    Ok(ObjectDefinition {
+        id,
+        version,
+        sequence_flag,
+        width,
+        height,
+        data_len,
+        data,
+    })
 }
 
 #[cfg(test)]

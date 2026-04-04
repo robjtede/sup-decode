@@ -1,17 +1,12 @@
-use std::{
-    fmt,
-    io::{Cursor, Read, Seek, SeekFrom},
-};
+use std::fmt;
 
-use byteorder::{BigEndian, ReadBytesExt};
-use log::trace;
 use winnow::{binary::be_u8, combinator::repeat, prelude::*};
 
 #[derive(Clone)]
-pub struct PaletteDefinition {
-    pub id: u8,
-    pub version: u8,
-    pub entries: Vec<PaletteEntry>,
+pub(crate) struct PaletteDefinition {
+    pub(crate) id: u8,
+    pub(crate) version: u8,
+    pub(crate) entries: Vec<PaletteEntry>,
 }
 
 impl PaletteDefinition {
@@ -43,12 +38,12 @@ impl fmt::Debug for PaletteDefinition {
 }
 
 #[derive(Clone)]
-pub struct PaletteEntry {
-    pub id: u8,
-    pub y: u8,     // (Y) Luminance
-    pub cr: u8,    // (Cr) Color Difference Red
-    pub cb: u8,    // (Cb) Color Difference Blue
-    pub alpha: u8, // Transparency
+pub(crate) struct PaletteEntry {
+    pub(crate) id: u8,
+    pub(crate) y: u8,     // (Y) Luminance
+    pub(crate) cr: u8,    // (Cr) Color Difference Red
+    pub(crate) cb: u8,    // (Cb) Color Difference Blue
+    pub(crate) alpha: u8, // Transparency
 }
 
 impl PaletteEntry {
@@ -111,7 +106,7 @@ fn decode_palette_entry(input: &mut &[u8]) -> winnow::Result<PaletteEntry> {
         .parse_next(input)
 }
 
-pub fn decode_pds(input: &[u8]) -> PaletteDefinition {
+pub(crate) fn decode_pds(input: &[u8]) -> PaletteDefinition {
     let (palette_id, version, entries) = (be_u8, be_u8, repeat(1.., decode_palette_entry))
         .parse(input)
         .unwrap();
@@ -126,7 +121,6 @@ pub fn decode_pds(input: &[u8]) -> PaletteDefinition {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hex_literal::hex;
 
     #[test]
     fn pds() {

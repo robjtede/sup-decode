@@ -3,7 +3,7 @@ use std::fmt;
 use winnow::{
     Bytes,
     binary::{be_u8, be_u16, length_repeat},
-    error::{ContextError, StrContext, StrContextValue},
+    error::{StrContext, StrContextValue},
     prelude::*,
 };
 
@@ -39,7 +39,7 @@ use winnow::{
 // When the Object Cropped Flag is set to true (or actually 0x40), then the sub picture is cropped to show only a portion of it. This is used for example when you don’t want to show the whole subtitle at first, but just a few words first, and then the rest.
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum CompositionState {
+pub(crate) enum CompositionState {
     /// This defines a new display. The Epoch Start contains all functional segments needed to
     /// display a new composition on the screen.
     EpochStart,
@@ -59,14 +59,14 @@ pub enum CompositionState {
 
 /// Presentation Composition Segment
 #[derive(Clone)]
-pub struct PresentationComposition {
-    pub comp_no: u16,
-    pub comp_state: CompositionState,
-    pub width: u16,
-    pub height: u16,
-    pub palette_id: u8,
-    pub palette_update: bool,
-    pub composition_objects: Vec<CompositionObject>,
+pub(crate) struct PresentationComposition {
+    pub(crate) comp_no: u16,
+    pub(crate) comp_state: CompositionState,
+    pub(crate) width: u16,
+    pub(crate) height: u16,
+    pub(crate) palette_id: u8,
+    pub(crate) palette_update: bool,
+    pub(crate) composition_objects: Vec<CompositionObject>,
 }
 
 impl PresentationComposition {
@@ -102,7 +102,7 @@ impl fmt::Debug for PresentationComposition {
 }
 
 #[derive(Clone, PartialEq)]
-pub struct CompositionObject {
+pub(crate) struct CompositionObject {
     pub(crate) id: u16,
     pub(crate) window_id: u8,
     pub(crate) cropped: bool,
@@ -240,7 +240,7 @@ fn parse_composition_object(input: &mut &Bytes) -> winnow::Result<CompositionObj
     })
 }
 
-pub fn decode_pcs(input: &mut &Bytes) -> winnow::Result<PresentationComposition> {
+pub(crate) fn decode_pcs(input: &mut &Bytes) -> winnow::Result<PresentationComposition> {
     (
         be_u16.context(StrContext::Label("PCS width")),
         be_u16.context(StrContext::Label("PCS height")),

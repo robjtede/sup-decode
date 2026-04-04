@@ -1,29 +1,28 @@
-use std::cmp;
-
 use iced::{
     Color, Element, Length, Point, Renderer, Size, Task, Theme,
     mouse::Cursor,
     widget::{
-        Button, Canvas, Column, Container, Row, Text, button,
+        Canvas, Container, Row, button,
         canvas::{self, Cache},
         column, text,
     },
 };
 
-use crate::{DisplaySet, DisplaySetBuilder};
+use crate::DisplaySet;
 
 const TRANSPARENT: [f32; 4] = [0.0, 0.0, 0.0, 0.0];
 const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
+#[expect(dead_code)]
 const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 
 #[derive(Debug, Clone, Copy)]
-pub enum Message {
+pub(crate) enum Message {
     NextFrame,
     PrevFrame,
 }
 
 #[derive(Debug)]
-pub struct SupViewer {
+pub(crate) struct SupViewer {
     frames: Vec<DisplaySet>,
     current_frame: usize,
     cache: Cache,
@@ -100,11 +99,11 @@ impl canvas::Program<Message> for SupViewer {
 
     fn draw(
         &self,
-        state: &Self::State,
+        _state: &Self::State,
         renderer: &Renderer,
-        theme: &Theme,
+        _theme: &Theme,
         bounds: iced::Rectangle,
-        cursor: Cursor,
+        _cursor: Cursor,
     ) -> Vec<canvas::Geometry<Renderer>> {
         let ds = &self.frames[self.current_frame];
 

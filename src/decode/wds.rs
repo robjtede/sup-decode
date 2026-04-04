@@ -5,12 +5,12 @@ use winnow::{
 };
 
 #[derive(Debug, Clone)]
-pub struct WindowDefinition {
-    pub id: u8,
-    pub x: u16,
-    pub y: u16,
-    pub width: u16,
-    pub height: u16,
+pub(crate) struct WindowDefinition {
+    pub(crate) id: u8,
+    pub(crate) x: u16,
+    pub(crate) y: u16,
+    pub(crate) width: u16,
+    pub(crate) height: u16,
 }
 
 impl WindowDefinition {
@@ -31,7 +31,7 @@ fn decode_single_window_definiton(input: &mut &Bytes) -> winnow::Result<WindowDe
         .parse_next(input)
 }
 
-pub fn decode_wds(input: &mut &Bytes) -> winnow::Result<Vec<WindowDefinition>> {
+pub(crate) fn decode_wds(input: &mut &Bytes) -> winnow::Result<Vec<WindowDefinition>> {
     length_repeat(be_u8, decode_single_window_definiton).parse_next(input)
 }
 

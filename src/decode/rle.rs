@@ -1,17 +1,11 @@
-use std::{
-    io::{Cursor, Read, Seek, SeekFrom},
-    iter,
-};
-
-use byteorder::{BigEndian, ByteOrder, ReadBytesExt as _};
 use winnow::{
     Bytes,
     binary::{
         be_u8,
-        bits::{self, Bits, bits, bool, take},
+        bits::{bits, bool, take},
     },
     combinator::alt,
-    error::{ContextError, ErrMode, StrContext, StrContextValue},
+    error::{ContextError, StrContext},
     prelude::*,
     token::literal,
 };
@@ -86,7 +80,7 @@ fn decode_pixels(input: &mut &Bytes) -> winnow::Result<Vec<u8>> {
     .parse_next(input)
 }
 
-pub fn decode_rle(input: &mut &Bytes) -> winnow::Result<Vec<u8>> {
+pub(crate) fn decode_rle(input: &mut &Bytes) -> winnow::Result<Vec<u8>> {
     alt((
         decode_eol
             .context(StrContext::Label("RLE EoL"))
