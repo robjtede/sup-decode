@@ -1,9 +1,11 @@
-use std::{
-    fmt,
-    io::{Cursor, Read, Seek, SeekFrom},
-};
+use std::fmt;
 
-use byteorder::{BigEndian, ReadBytesExt};
+use winnow::{
+    Bytes,
+    binary::{be_u8, be_u16, length_repeat},
+    error::{ContextError, StrContext, StrContextValue},
+    prelude::*,
+};
 
 // The Presentation Composition Segment is used for composing a sub picture. It is made of the following fields:
 // Name                             Bytes    Description
@@ -60,7 +62,6 @@ pub enum CompositionState {
 pub struct PresentationComposition {
     pub comp_no: u16,
     pub comp_state: CompositionState,
-    pub num_comp_objects: u8,
     pub width: u16,
     pub height: u16,
     pub palette_id: u8,
@@ -85,7 +86,7 @@ impl fmt::Debug for PresentationComposition {
             self.height,
             self.palette_id,
             self.palette_update,
-            self.num_comp_objects,
+            self.composition_objects.len(),
         )?;
 
         if f.alternate() && !self.composition_objects.is_empty() {
@@ -140,82 +141,144 @@ impl fmt::Debug for CompositionObject {
     }
 }
 
-pub fn decode_pcs<T: AsRef<[u8]>>(data: T) -> PresentationComposition {
-    let data = data.as_ref();
-    let mut c = Cursor::new(data);
+fn parse_comp_state(input: &mut &Bytes) -> winnow::Result<CompositionState> {
+    be_u8
+        .verify_map(|byte| {
+            Some(match byte {
+                0x80 => CompositionState::EpochStart,
+                0x40 => CompositionState::AcquisitionPoint,
+                0x00 => CompositionState::Normal,
+                _ => return None,
+            })
+        })
+        .context(StrContext::Label("PCS composition state"))
+        .context(StrContext::Expected(StrContextValue::Description(
+            "0x00, 0x40, or 0x80",
+        )))
+        .parse_next(input)
+}
 
-    let width = c.read_u16::<BigEndian>().unwrap();
-    let height = c.read_u16::<BigEndian>().unwrap();
+fn parse_palette_update(input: &mut &Bytes) -> winnow::Result<bool> {
+    be_u8
+        .verify_map(|byte| {
+            Some(match byte {
+                0x00 => false,
+                0x80 => true,
+                _ => return None,
+            })
+        })
+        .context(StrContext::Label("PCS palette update flag"))
+        .context(StrContext::Expected(StrContextValue::Description(
+            "0x00 or 0x80",
+        )))
+        .parse_next(input)
+}
 
-    // skip "frame rate" useless value
-    c.seek(SeekFrom::Current(1)).unwrap();
+fn parse_object_cropped_flag(input: &mut &Bytes) -> winnow::Result<bool> {
+    be_u8
+        .verify_map(|byte| {
+            Some(match byte {
+                0x40 => true,
+                0x00 => false,
+                _ => return None,
+            })
+        })
+        .context(StrContext::Label("PCS composition object cropped flag"))
+        .context(StrContext::Expected(StrContextValue::Description(
+            "0x00 or 0x40",
+        )))
+        .parse_next(input)
+}
 
-    let comp_no = c.read_u16::<BigEndian>().unwrap();
+fn parse_crop_rect(input: &mut &Bytes) -> winnow::Result<(u16, u16, u16, u16)> {
+    (
+        be_u16.context(StrContext::Label("PCS crop x")),
+        be_u16.context(StrContext::Label("PCS crop y")),
+        be_u16.context(StrContext::Label("PCS crop width")),
+        be_u16.context(StrContext::Label("PCS crop height")),
+    )
+        .context(StrContext::Label("PCS composition object crop"))
+        .parse_next(input)
+}
 
-    let comp_state = match c.read_u8().unwrap() {
-        0x80 => CompositionState::EpochStart,
-        0x40 => CompositionState::AcquisitionPoint,
-        0x00 => CompositionState::Normal,
-        byte => panic!("unknown composition state: {byte}"),
+fn parse_composition_object(input: &mut &Bytes) -> winnow::Result<CompositionObject> {
+    let (id, window_id, cropped, x, y) = (
+        be_u16.context(StrContext::Label("PCS composition object id")),
+        be_u8.context(StrContext::Label("PCS composition object window id")),
+        parse_object_cropped_flag,
+        be_u16.context(StrContext::Label("PCS composition object x")),
+        be_u16.context(StrContext::Label("PCS composition object y")),
+    )
+        .context(StrContext::Label("PCS composition object"))
+        .parse_next(input)?;
+
+    // Some real PGS files set cropped=true but omit the crop rectangle entirely.
+    let (crop_x, crop_y, crop_width, crop_height) = if cropped && !input.is_empty() {
+        let (crop_x, crop_y, crop_width, crop_height) = parse_crop_rect
+            .context(StrContext::Label("PCS composition object"))
+            .parse_next(input)?;
+        (
+            Some(crop_x),
+            Some(crop_y),
+            Some(crop_width),
+            Some(crop_height),
+        )
+    } else {
+        (None, None, None, None)
     };
 
-    let palette_update = match c.read_u8().unwrap() {
-        0x00 => false,
-        0x80 => true,
-        byte => panic!("unknown pallet update flag: {byte}"),
-    };
+    Ok(CompositionObject {
+        id,
+        window_id,
+        cropped,
+        x,
+        y,
+        crop_x,
+        crop_y,
+        crop_width,
+        crop_height,
+    })
+}
 
-    let palette_id = c.read_u8().unwrap();
-    let num_comp_objects = c.read_u8().unwrap();
-
-    let mut composition_objects = Vec::new();
-
-    for _ in 0..num_comp_objects {
-        let id = c.read_u16::<BigEndian>().unwrap();
-        let window_id = c.read_u8().unwrap();
-
-        let cropped = match c.read_u8().unwrap() {
-            0x40 => true,
-            0x00 => false,
-            byte => panic!("unknown object cropped flag: {byte}"),
-        };
-
-        let x = c.read_u16::<BigEndian>().unwrap();
-        let y = c.read_u16::<BigEndian>().unwrap();
-
-        let read_crop = cropped
-            // some real PGS files set cropped=true but don't include the data
-            && c.position() < data.len() as u64;
-
-        let crop_x = read_crop.then(|| c.read_u16::<BigEndian>().unwrap());
-        let crop_y = read_crop.then(|| c.read_u16::<BigEndian>().unwrap());
-
-        let crop_width = read_crop.then(|| c.read_u16::<BigEndian>().unwrap());
-        let crop_height = read_crop.then(|| c.read_u16::<BigEndian>().unwrap());
-
-        composition_objects.push(CompositionObject {
-            id,
-            window_id,
-            cropped,
-            x,
-            y,
-            crop_x,
-            crop_y,
-            crop_width,
-            crop_height,
-        });
-    }
-
-    PresentationComposition {
-        comp_no,
-        comp_state,
-        num_comp_objects,
-        width,
-        height,
-        palette_id,
-        palette_update,
-        composition_objects,
-    }
+pub fn decode_pcs(input: &mut &Bytes) -> winnow::Result<PresentationComposition> {
+    (
+        be_u16.context(StrContext::Label("PCS width")),
+        be_u16.context(StrContext::Label("PCS height")),
+        be_u8.void().context(StrContext::Label("PCS frame rate")),
+        be_u16.context(StrContext::Label("PCS composition number")),
+        parse_comp_state,
+        parse_palette_update,
+        be_u8.context(StrContext::Label("PCS palette id")),
+        length_repeat::<_, _, Vec<_>, _, _, _, _>(
+            be_u8.context(StrContext::Label("PCS composition object count")),
+            parse_composition_object,
+        )
+        .context(StrContext::Label("PCS composition objects")),
+    )
+        .context(StrContext::Label("PCS"))
+        .map(
+            |(
+                width,
+                height,
+                _,
+                comp_no,
+                comp_state,
+                palette_update,
+                palette_id,
+                composition_objects,
+            )| {
+                PresentationComposition {
+                    comp_no,
+                    comp_state,
+                    width,
+                    height,
+                    palette_id,
+                    palette_update,
+                    composition_objects,
+                }
+            },
+        )
+        .parse_next(input)
 }
 
 #[cfg(test)]
@@ -225,21 +288,48 @@ mod tests {
 
     #[test]
     fn pcs() {
-        let data = hex!(
-            "
-        07 80 04 38 10 04 42 80 00 00 01
-        00 00 00 40 02 4c 03 64"
-        );
-        let pcs = decode_pcs(data);
+        let data = hex! {"
+            07 80 04 38  10 04 42 80
+            00 00 01 00  00 00 40 02
+            4c 03 64
+        "};
+        let pcs = decode_pcs(&mut Bytes::new(&data)).unwrap();
 
-        assert_eq!(pcs.comp_no, 1090);
+        assert_eq!(1090, pcs.comp_no);
         assert_eq!(pcs.comp_state, CompositionState::EpochStart);
-        assert_eq!(pcs.num_comp_objects, 1);
+        assert_eq!(1, pcs.composition_objects.len());
 
-        assert_eq!(pcs.width, 1920);
-        assert_eq!(pcs.height, 1080);
+        assert_eq!(1920, pcs.width);
+        assert_eq!(1080, pcs.height);
 
-        assert_eq!(pcs.palette_id, 0);
+        assert_eq!(0, pcs.palette_id);
         assert!(!pcs.palette_update);
+
+        let obj = &pcs.composition_objects[0];
+        assert_eq!(0, obj.id);
+        assert_eq!(0, obj.window_id);
+        assert!(obj.cropped);
+        assert_eq!(588, obj.x);
+        assert_eq!(868, obj.y);
+        assert_eq!(None, obj.crop_x);
+        assert_eq!(None, obj.crop_y);
+        assert_eq!(None, obj.crop_width);
+        assert_eq!(None, obj.crop_height);
+    }
+
+    #[test]
+    fn composition_object_allows_missing_crop_rect() {
+        let data = hex!("00 00 00 40 02 4c 03 64");
+        let obj = parse_composition_object(&mut Bytes::new(&data)).unwrap();
+
+        assert_eq!(0, obj.id);
+        assert_eq!(0, obj.window_id);
+        assert!(obj.cropped);
+        assert_eq!(588, obj.x);
+        assert_eq!(868, obj.y);
+        assert_eq!(None, obj.crop_x);
+        assert_eq!(None, obj.crop_y);
+        assert_eq!(None, obj.crop_width);
+        assert_eq!(None, obj.crop_height);
     }
 }

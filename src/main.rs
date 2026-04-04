@@ -181,7 +181,7 @@ fn main() -> iced::Result {
 
         let segment = match seg_type {
             SegmentType::PCS => {
-                let seg = decode::pcs(seg_data);
+                let seg = decode::pcs(&mut Bytes::new(&seg_data)).unwrap();
                 println!("PCS {seg:#?}");
                 Segment::Pcs(pts, seg)
             }
