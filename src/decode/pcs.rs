@@ -1,8 +1,7 @@
 use std::fmt;
 
 use winnow::{
-    Bytes,
-    ModalResult,
+    Bytes, ModalResult,
     binary::{be_u8, be_u16, length_repeat},
     error::{StrContext, StrContextValue},
     prelude::*,

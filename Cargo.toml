@@ -6,13 +6,13 @@ rust-version = "1.94"
 
 [dependencies]
 chrono = "0.4"
-log = "0.4"
-image = "0.25"
-iced = { version = "0.13", features = ["canvas"] }
-strum = { version = "0.28", features = ["derive"] }
-winnow = "1"
-eyre = "0.6"
 color-eyre = "0.6"
+eyre = "0.6"
+iced = { version = "0.14", features = ["canvas"] }
+image = "0.25"
+strum = { version = "0.28", features = ["derive"] }
+tracing = "0.1.30"
+winnow = "1"
 
 [dev-dependencies]
 hex-literal = "1"

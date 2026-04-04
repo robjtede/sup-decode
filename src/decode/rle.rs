@@ -1,6 +1,5 @@
 use winnow::{
-    Bytes,
-    ModalResult,
+    Bytes, ModalResult,
     binary::{
         be_u8,
         bits::{bits, bool, take},

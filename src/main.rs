@@ -17,9 +17,13 @@ fn main() -> eyre::Result<()> {
 
     println!("processed {num_frames} frames");
 
-    iced::application("sup-decode", ui::SupViewer::update, ui::SupViewer::view)
-        .centered()
-        .run_with(|| ui::SupViewer::new(frames))?;
+    iced::application(
+        move || ui::SupViewer::new(frames.clone()),
+        ui::SupViewer::update,
+        ui::SupViewer::view,
+    )
+    .centered()
+    .run()?;
 
     Ok(())
 }
