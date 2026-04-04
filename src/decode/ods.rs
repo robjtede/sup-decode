@@ -1,10 +1,10 @@
 use std::fmt;
 
 use winnow::{
-    Bytes,
+    Bytes, ModalResult,
     binary::{be_u8, be_u16, be_u24},
     combinator::repeat,
-    error::{ContextError, StrContext, StrContextValue},
+    error::{ContextError, ErrMode, StrContext, StrContextValue},
     prelude::*,
     token::take,
 };
@@ -42,7 +42,7 @@ impl SequenceFlag {
     }
 }
 
-fn parse_sequence_flag(input: &mut &Bytes) -> winnow::Result<SequenceFlag> {
+fn parse_sequence_flag(input: &mut &Bytes) -> ModalResult<SequenceFlag> {
     be_u8
         .verify_map(|flag| {
             Some(match flag {
@@ -60,7 +60,7 @@ fn parse_sequence_flag(input: &mut &Bytes) -> winnow::Result<SequenceFlag> {
         .parse_next(input)
 }
 
-fn parse_dimensions(input: &mut &Bytes) -> winnow::Result<(u16, u16)> {
+fn parse_dimensions(input: &mut &Bytes) -> ModalResult<(u16, u16)> {
     (
         be_u16.context(StrContext::Label("ODS width")),
         be_u16.context(StrContext::Label("ODS height")),
@@ -69,7 +69,7 @@ fn parse_dimensions(input: &mut &Bytes) -> winnow::Result<(u16, u16)> {
         .parse_next(input)
 }
 
-fn decode_rle_stream(input: &mut &Bytes) -> winnow::Result<Vec<u8>> {
+fn decode_rle_stream(input: &mut &Bytes) -> ModalResult<Vec<u8>> {
     repeat(0.., decode_rle)
         .map(|chunks: Vec<Vec<u8>>| chunks.into_iter().flatten().collect())
         .context(StrContext::Label("ODS RLE data"))
@@ -80,13 +80,13 @@ fn parse_object_data(
     input: &mut &Bytes,
     sequence_flag: SequenceFlag,
     data_len: u32,
-) -> winnow::Result<(u16, u16, Vec<u8>)> {
+) -> ModalResult<(u16, u16, Vec<u8>)> {
     let (width, height, rle_len) = if sequence_flag.has_dimensions() {
         let (width, height) = parse_dimensions.parse_next(input)?;
         let rle_len = data_len.checked_sub(4).ok_or_else(|| {
             let mut err = ContextError::new();
             err.push(StrContext::Label("ODS object data length"));
-            err
+            ErrMode::Backtrack(err)
         })?;
         (width, height, rle_len)
     } else {
@@ -102,7 +102,7 @@ fn parse_object_data(
     Ok((width, height, data))
 }
 
-pub(crate) fn decode_ods(input: &mut &Bytes) -> winnow::Result<ObjectDefinition> {
+pub(crate) fn decode_ods(input: &mut &Bytes) -> ModalResult<ObjectDefinition> {
     let (id, version, sequence_flag, data_len) = (
         be_u16.context(StrContext::Label("ODS object id")),
         be_u8.context(StrContext::Label("ODS version")),
@@ -132,7 +132,7 @@ mod tests {
     #[test]
     fn ods() {
         let data = std::fs::read("data/test/ods.dat").unwrap();
-        let ods = decode_ods.parse(&mut Bytes::new(&data)).unwrap();
+        let ods = decode_ods.parse(Bytes::new(&data)).unwrap();
 
         assert_eq!(0, ods.id);
         assert_eq!(0, ods.version);

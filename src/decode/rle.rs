@@ -1,11 +1,12 @@
 use winnow::{
     Bytes,
+    ModalResult,
     binary::{
         be_u8,
         bits::{bits, bool, take},
     },
     combinator::alt,
-    error::{ContextError, StrContext},
+    error::{ContextError, ErrMode, StrContext},
     prelude::*,
     token::literal,
 };
@@ -23,52 +24,56 @@ use winnow::{
 const COLOR_BLACK: u8 = 0;
 
 /// Decodes `00000000 00000000` form.
-fn decode_eol(input: &mut &Bytes) -> winnow::Result<()> {
+fn decode_eol(input: &mut &Bytes) -> ModalResult<()> {
     literal(&[0, 0]).void().parse_next(input)
 }
 
 /// Decodes `CCCCCCCC` form.
-fn decode_pixel(input: &mut &Bytes) -> winnow::Result<u8> {
+fn decode_pixel(input: &mut &Bytes) -> ModalResult<u8> {
     be_u8.verify(|&value| value != 0).parse_next(input)
 }
 
 /// Decodes `11LLLLLL LLLLLLLL CCCCCCCC` form.
-fn decode_color_pixels_long(input: &mut &Bytes) -> winnow::Result<Vec<u8>> {
+fn decode_color_pixels_long(input: &mut &Bytes) -> ModalResult<Vec<u8>> {
     bits::<_, _, ContextError, _, _>((bool, bool, take(14_usize), take(8_usize)))
         .verify_map(|(is_color, is_long, len, color)| {
             (is_color && is_long).then(|| vec![color; len])
         })
         .parse_next(input)
+        .map_err(ErrMode::Backtrack)
 }
 
 /// Decodes `10LLLLLL CCCCCCCC` form.
-fn decode_color_pixels_short(input: &mut &Bytes) -> winnow::Result<Vec<u8>> {
+fn decode_color_pixels_short(input: &mut &Bytes) -> ModalResult<Vec<u8>> {
     bits::<_, _, ContextError, _, _>((bool, bool, take(6_usize), take(8_usize)))
         .verify_map(|(is_color, is_long, len, color)| {
             (is_color && !is_long).then(|| vec![color; len])
         })
         .parse_next(input)
+        .map_err(ErrMode::Backtrack)
 }
 
 /// Decodes `01LLLLLL LLLLLLLL` form.
-fn decode_black_pixels_long(input: &mut &Bytes) -> winnow::Result<Vec<u8>> {
+fn decode_black_pixels_long(input: &mut &Bytes) -> ModalResult<Vec<u8>> {
     bits::<_, _, ContextError, _, _>((bool, bool, take(14_usize)))
         .verify_map(|(is_color, is_long, len)| {
             (!is_color && is_long).then(|| vec![COLOR_BLACK; len])
         })
         .parse_next(input)
+        .map_err(ErrMode::Backtrack)
 }
 
 /// Decodes `00LLLLLL` form.
-fn decode_black_pixels_short(input: &mut &Bytes) -> winnow::Result<Vec<u8>> {
+fn decode_black_pixels_short(input: &mut &Bytes) -> ModalResult<Vec<u8>> {
     bits::<_, _, ContextError, _, _>((bool, bool, take(6_usize)))
         .verify_map(|(is_color, is_long, len)| {
             (!is_color && !is_long).then(|| vec![COLOR_BLACK; len])
         })
         .parse_next(input)
+        .map_err(ErrMode::Backtrack)
 }
 
-fn decode_pixels(input: &mut &Bytes) -> winnow::Result<Vec<u8>> {
+fn decode_pixels(input: &mut &Bytes) -> ModalResult<Vec<u8>> {
     let _zero_bits = be_u8.verify(|&value| value == 0).parse_next(input)?;
 
     alt((
@@ -80,7 +85,7 @@ fn decode_pixels(input: &mut &Bytes) -> winnow::Result<Vec<u8>> {
     .parse_next(input)
 }
 
-pub(crate) fn decode_rle(input: &mut &Bytes) -> winnow::Result<Vec<u8>> {
+pub(crate) fn decode_rle(input: &mut &Bytes) -> ModalResult<Vec<u8>> {
     alt((
         decode_eol
             .context(StrContext::Label("RLE EoL"))

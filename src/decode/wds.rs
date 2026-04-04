@@ -1,16 +1,21 @@
 use winnow::{
-    Bytes,
+    Bytes, ModalResult,
     binary::{be_u8, be_u16, length_repeat},
     prelude::*,
 };
 
 #[derive(Debug, Clone)]
 pub(crate) struct WindowDefinition {
-    pub(crate) id: u8,
-    pub(crate) x: u16,
-    pub(crate) y: u16,
-    pub(crate) width: u16,
-    pub(crate) height: u16,
+    #[cfg_attr(not(test), expect(dead_code))]
+    id: u8,
+    #[cfg_attr(not(test), expect(dead_code))]
+    x: u16,
+    #[cfg_attr(not(test), expect(dead_code))]
+    y: u16,
+    #[cfg_attr(not(test), expect(dead_code))]
+    width: u16,
+    #[cfg_attr(not(test), expect(dead_code))]
+    height: u16,
 }
 
 impl WindowDefinition {
@@ -25,13 +30,13 @@ impl WindowDefinition {
     }
 }
 
-fn decode_single_window_definiton(input: &mut &Bytes) -> winnow::Result<WindowDefinition> {
+fn decode_single_window_definiton(input: &mut &Bytes) -> ModalResult<WindowDefinition> {
     (be_u8, be_u16, be_u16, be_u16, be_u16)
         .map(WindowDefinition::from_tuple)
         .parse_next(input)
 }
 
-pub(crate) fn decode_wds(input: &mut &Bytes) -> winnow::Result<Vec<WindowDefinition>> {
+pub(crate) fn decode_wds(input: &mut &Bytes) -> ModalResult<Vec<WindowDefinition>> {
     length_repeat(be_u8, decode_single_window_definiton).parse_next(input)
 }
 

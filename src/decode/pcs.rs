@@ -2,6 +2,7 @@ use std::fmt;
 
 use winnow::{
     Bytes,
+    ModalResult,
     binary::{be_u8, be_u16, length_repeat},
     error::{StrContext, StrContextValue},
     prelude::*,
@@ -141,7 +142,7 @@ impl fmt::Debug for CompositionObject {
     }
 }
 
-fn parse_comp_state(input: &mut &Bytes) -> winnow::Result<CompositionState> {
+fn parse_comp_state(input: &mut &Bytes) -> ModalResult<CompositionState> {
     be_u8
         .verify_map(|byte| {
             Some(match byte {
@@ -158,7 +159,7 @@ fn parse_comp_state(input: &mut &Bytes) -> winnow::Result<CompositionState> {
         .parse_next(input)
 }
 
-fn parse_palette_update(input: &mut &Bytes) -> winnow::Result<bool> {
+fn parse_palette_update(input: &mut &Bytes) -> ModalResult<bool> {
     be_u8
         .verify_map(|byte| {
             Some(match byte {
@@ -174,7 +175,7 @@ fn parse_palette_update(input: &mut &Bytes) -> winnow::Result<bool> {
         .parse_next(input)
 }
 
-fn parse_object_cropped_flag(input: &mut &Bytes) -> winnow::Result<bool> {
+fn parse_object_cropped_flag(input: &mut &Bytes) -> ModalResult<bool> {
     be_u8
         .verify_map(|byte| {
             Some(match byte {
@@ -190,7 +191,7 @@ fn parse_object_cropped_flag(input: &mut &Bytes) -> winnow::Result<bool> {
         .parse_next(input)
 }
 
-fn parse_crop_rect(input: &mut &Bytes) -> winnow::Result<(u16, u16, u16, u16)> {
+fn parse_crop_rect(input: &mut &Bytes) -> ModalResult<(u16, u16, u16, u16)> {
     (
         be_u16.context(StrContext::Label("PCS crop x")),
         be_u16.context(StrContext::Label("PCS crop y")),
@@ -201,7 +202,7 @@ fn parse_crop_rect(input: &mut &Bytes) -> winnow::Result<(u16, u16, u16, u16)> {
         .parse_next(input)
 }
 
-fn parse_composition_object(input: &mut &Bytes) -> winnow::Result<CompositionObject> {
+fn parse_composition_object(input: &mut &Bytes) -> ModalResult<CompositionObject> {
     let (id, window_id, cropped, x, y) = (
         be_u16.context(StrContext::Label("PCS composition object id")),
         be_u8.context(StrContext::Label("PCS composition object window id")),
@@ -240,7 +241,7 @@ fn parse_composition_object(input: &mut &Bytes) -> winnow::Result<CompositionObj
     })
 }
 
-pub(crate) fn decode_pcs(input: &mut &Bytes) -> winnow::Result<PresentationComposition> {
+pub(crate) fn decode_pcs(input: &mut &Bytes) -> ModalResult<PresentationComposition> {
     (
         be_u16.context(StrContext::Label("PCS width")),
         be_u16.context(StrContext::Label("PCS height")),
