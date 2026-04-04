@@ -123,15 +123,14 @@ impl fmt::Debug for CompositionObject {
 
         if self.cropped
             // some real PGS files set cropped=true but don't include the data
-            && self.crop_x.is_some()
+            && let Some(crop_x) = self.crop_x
+            && let Some(crop_y) = self.crop_y
+            && let Some(crop_width) = self.crop_width
+            && let Some(crop_height) = self.crop_height
         {
             write!(
                 f,
-                ", crop_x={}, crop_y={}, crop_width={}, crop_height={}",
-                self.crop_x.unwrap(),
-                self.crop_y.unwrap(),
-                self.crop_width.unwrap(),
-                self.crop_height.unwrap(),
+                ", crop_x={crop_x}, crop_y={crop_y}, crop_width={crop_width}, crop_height={crop_height}",
             )?;
         } else {
             write!(f, ", cropped={}", self.cropped)?;

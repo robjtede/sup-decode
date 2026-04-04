@@ -63,7 +63,7 @@ mod tests {
         assert_eq!(wds[0].y, 108);
         assert_eq!(wds[0].width, 377);
         assert_eq!(wds[0].height, 43);
-        
+
         assert_eq!(wds[1].id, 1);
         assert_eq!(wds[1].x, 739);
         assert_eq!(wds[1].y, 928);

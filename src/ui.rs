@@ -41,7 +41,7 @@ impl SupViewer {
         )
     }
 
-    pub(crate) fn view(&self) -> Element<Message> {
+    pub(crate) fn view(&self) -> Element<'_, Message> {
         let ds = &self.frames[self.current_frame];
 
         let canvas = Canvas::new(self)

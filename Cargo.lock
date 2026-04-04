@@ -3502,7 +3502,7 @@ dependencies = [
 
 [[package]]
 name = "sup-decode"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "byteorder",
  "chrono",
@@ -3511,6 +3511,7 @@ dependencies = [
  "image",
  "log",
  "strum",
+ "winnow 1.0.1",
 ]
 
 [[package]]
@@ -3706,7 +3707,7 @@ checksum = "17b4795ff5edd201c7cd6dca065ae59972ce77d1b80fa0a84d94950ece7d1474"
 dependencies = [
  "indexmap",
  "toml_datetime",
- "winnow",
+ "winnow 0.7.3",
 ]
 
 [[package]]
@@ -4543,6 +4544,15 @@ name = "winnow"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e7f4ea97f6f78012141bcdb6a216b2609f0979ada50b20ca5b52dde2eac2bb1"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
+name = "winnow"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09dac053f1cd375980747450bfc7250c264eaae0583872e845c0c7cd578872b5"
 dependencies = [
  "memchr",
 ]
