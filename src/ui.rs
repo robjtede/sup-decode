@@ -1,7 +1,7 @@
 use iced::{
     Color, Element, Length, Point, Renderer, Size, Task, Theme,
     mouse::Cursor,
-    widget::{Canvas, Container, Row, button, canvas, column, text},
+    widget::{Canvas, Container, Row, button, canvas, checkbox, column, text},
 };
 
 use crate::DisplaySet;
@@ -14,12 +14,14 @@ const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 pub(crate) enum Message {
     NextFrame,
     PrevFrame,
+    ToggleOutlines(bool),
 }
 
 #[derive(Debug)]
 pub(crate) struct SupViewer {
     frames: Vec<DisplaySet>,
     current_frame: usize,
+    show_outlines: bool,
 }
 
 impl SupViewer {
@@ -28,6 +30,7 @@ impl SupViewer {
             Self {
                 frames,
                 current_frame: 0,
+                show_outlines: true,
             },
             Task::none(),
         )
@@ -49,6 +52,41 @@ impl SupViewer {
 
         let back_button = button("prev").on_press(Message::PrevFrame);
         let next_button = button("next").on_press(Message::NextFrame);
+        let outline_toggle = checkbox(self.show_outlines)
+            .label("Show outlines")
+            .on_toggle(Message::ToggleOutlines);
+        let start_pts = format_timestamp(self.frames.first().unwrap().pts);
+        let current_pts = format_timestamp(ds.pts);
+        let end_pts = format_timestamp(self.frames.last().unwrap().pts);
+        let timeline = Canvas::new(Timeline {
+            frames: &self.frames,
+            current_frame: self.current_frame,
+        })
+        .width(Length::Fill)
+        .height(Length::Fixed(36.0));
+        let timeline_info = text(format!(
+            "{} / {}  {}",
+            self.current_frame + 1,
+            self.frames.len(),
+            current_pts,
+        ))
+        .width(Length::Fill)
+        .align_x(iced::alignment::Horizontal::Center);
+        let timeline_column = column![
+            Row::new()
+                .push(text(start_pts))
+                .push(Container::new(text("")).width(Length::Fill))
+                .push(text(end_pts)),
+            timeline,
+            timeline_info,
+            Row::new()
+                .push(Container::new(text("")).width(Length::Fill))
+                .push(outline_toggle)
+                .push(Container::new(text("")).width(Length::Fill)),
+        ]
+        .spacing(4)
+        .width(Length::Fill)
+        .padding([6, 10]);
 
         let content = column![
             text(format!(
@@ -62,13 +100,9 @@ impl SupViewer {
             )),
             canvas,
             Row::new()
-                .spacing(20)
+                .spacing(12)
                 .push(back_button)
-                .push(text(format!(
-                    "{} / {}",
-                    self.current_frame + 1,
-                    self.frames.len(),
-                )))
+                .push(timeline_column)
                 .push(next_button),
         ];
 
@@ -90,12 +124,92 @@ impl SupViewer {
                 self.current_frame -= 1;
             }
 
+            Message::ToggleOutlines(show_outlines) => {
+                self.show_outlines = show_outlines;
+            }
+
             Message::NextFrame if self.current_frame >= frames - 1 => {}
 
             Message::NextFrame => {
                 self.current_frame += 1;
             }
         }
+    }
+}
+
+struct Timeline<'a> {
+    frames: &'a [DisplaySet],
+    current_frame: usize,
+}
+
+impl canvas::Program<Message> for Timeline<'_> {
+    type State = ();
+
+    fn draw(
+        &self,
+        _state: &Self::State,
+        renderer: &Renderer,
+        _theme: &Theme,
+        bounds: iced::Rectangle,
+        _cursor: Cursor,
+    ) -> Vec<canvas::Geometry<Renderer>> {
+        let mut frame = canvas::Frame::new(renderer, bounds.size());
+
+        if self.frames.is_empty() {
+            return vec![frame.into_geometry()];
+        }
+
+        let size = frame.size();
+        let baseline_y = size.height / 2.0;
+        let start_x = 8.0;
+        let end_x = (size.width - 8.0).max(start_x);
+
+        let baseline = canvas::Path::line(
+            Point::new(start_x, baseline_y),
+            Point::new(end_x, baseline_y),
+        );
+        frame.stroke(
+            &baseline,
+            canvas::Stroke::default()
+                .with_color(Color::from_rgb(0.6, 0.6, 0.6))
+                .with_width(1.0),
+        );
+
+        let start = self.frames.first().unwrap().pts;
+        let end = self.frames.last().unwrap().pts;
+        let total_ms = end.signed_duration_since(start).num_milliseconds();
+
+        for (index, display_set) in self.frames.iter().enumerate() {
+            let x = if total_ms <= 0 {
+                start_x
+            } else {
+                let elapsed = display_set
+                    .pts
+                    .signed_duration_since(start)
+                    .num_milliseconds() as f32;
+                let progress = (elapsed / total_ms as f32).clamp(0.0, 1.0);
+                start_x + (end_x - start_x) * progress
+            };
+
+            let (height, width, color) = if index == self.current_frame {
+                (18.0, 2.5, Color::from_rgb(1.0, 0.25, 0.25))
+            } else {
+                (10.0, 1.0, Color::WHITE)
+            };
+
+            let tick = canvas::Path::line(
+                Point::new(x, baseline_y - height / 2.0),
+                Point::new(x, baseline_y + height / 2.0),
+            );
+            frame.stroke(
+                &tick,
+                canvas::Stroke::default()
+                    .with_color(color)
+                    .with_width(width),
+            );
+        }
+
+        vec![frame.into_geometry()]
     }
 }
 
@@ -157,19 +271,21 @@ impl canvas::Program<Message> for SupViewer {
         let obj = ds.pcs.find_object_by_id(ods.id).unwrap();
 
         // Draw the object bounding box in red to make obvious misalignment visible.
-        let object_box = canvas::Path::rectangle(
-            Point::new(
-                offset_x + obj.x as f32 * scale,
-                offset_y + obj.y as f32 * scale,
-            ),
-            Size::new(ods.width as f32 * scale, ods.height as f32 * scale),
-        );
-        frame.stroke(
-            &object_box,
-            canvas::Stroke::default()
-                .with_color(Color::from_rgb(1.0, 0.2, 0.2))
-                .with_width(1.0),
-        );
+        if self.show_outlines {
+            let object_box = canvas::Path::rectangle(
+                Point::new(
+                    offset_x + obj.x as f32 * scale,
+                    offset_y + obj.y as f32 * scale,
+                ),
+                Size::new(ods.width as f32 * scale, ods.height as f32 * scale),
+            );
+            frame.stroke(
+                &object_box,
+                canvas::Stroke::default()
+                    .with_color(Color::from_rgb(1.0, 0.2, 0.2))
+                    .with_width(1.0),
+            );
+        }
 
         let data = &ods.data;
         let w = ods.width as usize;
@@ -207,4 +323,8 @@ impl canvas::Program<Message> for SupViewer {
 
         vec![frame.into_geometry()]
     }
+}
+
+fn format_timestamp(pts: chrono::NaiveTime) -> String {
+    pts.format("%H:%M:%S%.3f").to_string()
 }

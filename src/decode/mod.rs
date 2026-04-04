@@ -22,7 +22,6 @@ pub(crate) enum DisplaySetState {
 
 #[derive(Debug, Clone)]
 pub(crate) struct DisplaySet {
-    #[expect(dead_code)]
     pub(crate) pts: NaiveTime,
     pub(crate) pcs: pcs::PresentationComposition,
     #[expect(dead_code)]
