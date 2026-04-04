@@ -1,6 +1,10 @@
 use std::io::{Cursor, Read, Seek, SeekFrom};
 
 use byteorder::{BigEndian, ReadBytesExt};
+use winnow::{
+    binary::{be_u8, be_u16, length_repeat},
+    prelude::*,
+};
 
 #[derive(Debug, Clone)]
 pub struct WindowDefinition {
@@ -12,7 +16,7 @@ pub struct WindowDefinition {
 }
 
 impl WindowDefinition {
-    pub fn new(id: u8, x: u16, y: u16, width: u16, height: u16) -> Self {
+    fn from_tuple((id, x, y, width, height): (u8, u16, u16, u16, u16)) -> Self {
         Self {
             id,
             x,
@@ -23,24 +27,16 @@ impl WindowDefinition {
     }
 }
 
-pub fn decode_wds(data: &[u8]) -> Vec<WindowDefinition> {
-    let mut c = Cursor::new(data);
+fn decode_single_window_definiton(input: &mut &[u8]) -> winnow::Result<WindowDefinition> {
+    (be_u8, be_u16, be_u16, be_u16, be_u16)
+        .map(WindowDefinition::from_tuple)
+        .parse_next(input)
+}
 
-    let num_windows = c.read_u8().unwrap();
-
-    let mut windows: Vec<WindowDefinition> = vec![];
-
-    for i in 0..num_windows {
-        let id = c.read_u8().unwrap();
-        let x = c.read_u16::<BigEndian>().unwrap();
-        let y = c.read_u16::<BigEndian>().unwrap();
-        let width = c.read_u16::<BigEndian>().unwrap();
-        let height = c.read_u16::<BigEndian>().unwrap();
-
-        windows.push(WindowDefinition::new(id, x, y, width, height));
-    }
-
-    windows
+pub fn decode_wds(mut input: &[u8]) -> Vec<WindowDefinition> {
+    length_repeat(be_u8, decode_single_window_definiton)
+        .parse_next(&mut input)
+        .unwrap()
 }
 
 #[cfg(test)]

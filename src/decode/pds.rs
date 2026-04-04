@@ -5,6 +5,7 @@ use std::{
 
 use byteorder::{BigEndian, ReadBytesExt};
 use log::trace;
+use winnow::{binary::be_u8, combinator::repeat, prelude::*};
 
 #[derive(Clone)]
 pub struct PaletteDefinition {
@@ -51,7 +52,7 @@ pub struct PaletteEntry {
 }
 
 impl PaletteEntry {
-    pub(crate) fn new(id: u8, y: u8, cr: u8, cb: u8, alpha: u8) -> Self {
+    pub(crate) fn from_tuple((id, y, cr, cb, alpha): (u8, u8, u8, u8, u8)) -> Self {
         Self {
             id,
             y,
@@ -104,33 +105,16 @@ impl fmt::Debug for PaletteEntry {
     }
 }
 
-pub fn decode_pds(data: &[u8]) -> PaletteDefinition {
-    // trace!("{:x?}", &data);
-    let mut c = Cursor::new(data);
+fn decode_palette_entry(input: &mut &[u8]) -> winnow::Result<PaletteEntry> {
+    (be_u8, be_u8, be_u8, be_u8, be_u8)
+        .map(PaletteEntry::from_tuple)
+        .parse_next(input)
+}
 
-    let palette_id = c.read_u8().unwrap();
-    let version = c.read_u8().unwrap();
-
-    let mut entries: Vec<PaletteEntry> = vec![];
-
-    let mut entry_data: Vec<u8> = vec![];
-    c.read_to_end(&mut entry_data).unwrap();
-    // trace!("{:x?}", &entry_data);
-
-    assert_eq!(entry_data.len() % 5, 0);
-    let num_entries = entry_data.len() / 5;
-
-    let mut c = Cursor::new(entry_data);
-
-    for i in 0..num_entries {
-        let id = c.read_u8().unwrap();
-        let y = c.read_u8().unwrap();
-        let cr = c.read_u8().unwrap();
-        let cb = c.read_u8().unwrap();
-        let alpha = c.read_u8().unwrap();
-
-        entries.push(PaletteEntry::new(id, y, cr, cb, alpha));
-    }
+pub fn decode_pds(input: &[u8]) -> PaletteDefinition {
+    let (palette_id, version, entries) = (be_u8, be_u8, repeat(1.., decode_palette_entry))
+        .parse(input)
+        .unwrap();
 
     PaletteDefinition {
         id: palette_id,
