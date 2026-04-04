@@ -1,7 +1,5 @@
-use std::io::{Cursor, Read, Seek, SeekFrom};
-
-use byteorder::{BigEndian, ReadBytesExt};
 use winnow::{
+    Bytes,
     binary::{be_u8, be_u16, length_repeat},
     prelude::*,
 };
@@ -27,22 +25,19 @@ impl WindowDefinition {
     }
 }
 
-fn decode_single_window_definiton(input: &mut &[u8]) -> winnow::Result<WindowDefinition> {
+fn decode_single_window_definiton(input: &mut &Bytes) -> winnow::Result<WindowDefinition> {
     (be_u8, be_u16, be_u16, be_u16, be_u16)
         .map(WindowDefinition::from_tuple)
         .parse_next(input)
 }
 
-pub fn decode_wds(input: &[u8]) -> Vec<WindowDefinition> {
-    length_repeat(be_u8, decode_single_window_definiton)
-        .parse(input)
-        .unwrap()
+pub fn decode_wds(input: &mut &Bytes) -> winnow::Result<Vec<WindowDefinition>> {
+    length_repeat(be_u8, decode_single_window_definiton).parse_next(input)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hex_literal::hex;
 
     #[test]
     fn decode_window_definitions() {
@@ -50,7 +45,7 @@ mod tests {
         // strip segment header
         let data = &data[13..];
 
-        let wds = decode_wds(data);
+        let wds = decode_wds(&mut Bytes::new(data)).unwrap();
 
         assert_eq!(wds.len(), 2);
 

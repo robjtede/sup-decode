@@ -186,7 +186,7 @@ fn main() -> iced::Result {
                 Segment::Pcs(pts, seg)
             }
             SegmentType::WDS => {
-                let seg = decode::wds(&seg_data);
+                let seg = decode::wds(&mut Bytes::new(&seg_data)).unwrap();
                 println!("WDS: {} windows", seg.len());
                 Segment::Wds(pts, seg)
             }
