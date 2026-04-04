@@ -4,6 +4,7 @@ use std::{
 };
 
 use byteorder::{BigEndian, ReadBytesExt};
+use winnow::Bytes;
 
 use crate::decode;
 
@@ -55,7 +56,7 @@ pub fn decode_ods(data: Vec<u8>) -> ObjectDefinition {
     c.read_to_end(&mut object_data).unwrap();
     assert_eq!(object_data.len(), (data_len - 4) as usize);
 
-    let image = decode::rle(&object_data);
+    let image = decode::rle(&mut Bytes::new(&object_data)).unwrap();
 
     ObjectDefinition {
         id: object_id,

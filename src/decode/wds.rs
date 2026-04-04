@@ -33,9 +33,9 @@ fn decode_single_window_definiton(input: &mut &[u8]) -> winnow::Result<WindowDef
         .parse_next(input)
 }
 
-pub fn decode_wds(mut input: &[u8]) -> Vec<WindowDefinition> {
+pub fn decode_wds(input: &[u8]) -> Vec<WindowDefinition> {
     length_repeat(be_u8, decode_single_window_definiton)
-        .parse_next(&mut input)
+        .parse(input)
         .unwrap()
 }
 
