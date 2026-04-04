@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_imports)]
+
 use criterion::{Criterion, criterion_group, criterion_main};
 
 #[path = "../src/segment.rs"]

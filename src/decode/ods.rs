@@ -3,13 +3,12 @@ use std::fmt;
 use winnow::{
     Bytes, ModalResult,
     binary::{be_u8, be_u16, be_u24},
-    combinator::repeat,
     error::{ContextError, ErrMode, StrContext, StrContextValue},
     prelude::*,
     token::take,
 };
 
-use crate::decode::rle::decode_rle;
+use crate::decode::rle::decode_rle_stream;
 
 #[derive(Clone, Hash)]
 pub(crate) struct ObjectDefinition {
@@ -69,13 +68,6 @@ fn parse_dimensions(input: &mut &Bytes) -> ModalResult<(u16, u16)> {
         .parse_next(input)
 }
 
-fn decode_rle_stream(input: &mut &Bytes) -> ModalResult<Vec<u8>> {
-    repeat(0.., decode_rle)
-        .map(|chunks: Vec<Vec<u8>>| chunks.into_iter().flatten().collect())
-        .context(StrContext::Label("ODS RLE data"))
-        .parse_next(input)
-}
-
 fn parse_object_data(
     input: &mut &Bytes,
     sequence_flag: SequenceFlag,
@@ -93,11 +85,17 @@ fn parse_object_data(
         (0, 0, data_len)
     };
 
-    let data = take(rle_len as usize)
-        .map(Bytes::new)
-        .and_then(decode_rle_stream)
+    let mut rle_input = take(rle_len as usize)
         .context(StrContext::Label("ODS object data"))
+        .map(Bytes::new)
         .parse_next(input)?;
+    let expected_pixels = usize::from(width) * usize::from(height);
+    let data = decode_rle_stream(&mut rle_input, expected_pixels).map_err(|err| {
+        err.map(|mut inner| {
+            inner.push(StrContext::Label("ODS RLE data"));
+            inner
+        })
+    })?;
 
     Ok((width, height, data))
 }

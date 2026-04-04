@@ -7,12 +7,11 @@ pub(crate) mod wds;
 use chrono::NaiveTime;
 use winnow::{
     Bytes,
-    combinator::eof,
-    error::{ContextError, ParseError},
+    error::ContextError,
     prelude::*,
 };
 
-use crate::segment::{Segment, parse_segments};
+use crate::segment::{Segment, parse_segment};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum DisplaySetState {
@@ -71,16 +70,18 @@ impl DisplaySetBuilder {
 
 pub(crate) fn parse_frames(
     bytes: &[u8],
-) -> Result<Vec<DisplaySet>, ParseError<&'_ Bytes, ContextError>> {
-    let input = Bytes::new(bytes);
-    let segments = (parse_segments, eof)
-        .map(|(segments, _)| segments)
-        .parse(input)?;
-
+) -> Result<Vec<DisplaySet>, ContextError> {
+    let mut input = Bytes::new(bytes);
     let mut display_sets = Vec::new();
     let mut running_ds = DisplaySetBuilder::default();
 
-    for segment in segments {
+    while !input.is_empty() {
+        let segment = parse_segment.parse_next(&mut input).map_err(|err| {
+            err.into_inner().unwrap_or_else(|_err| {
+                panic!("complete parsers should not report `ErrMode::Incomplete(_)`")
+            })
+        })?;
+
         match segment {
             Segment::Pcs(pts, seg) => {
                 running_ds.pts = Some(pts);
@@ -96,15 +97,14 @@ pub(crate) fn parse_frames(
                 running_ds.ods = Some(seg);
             }
             Segment::End => {
-                display_sets.push(running_ds);
-                running_ds = DisplaySetBuilder::default();
+                let completed = std::mem::take(&mut running_ds);
+
+                if completed.state() == DisplaySetState::Complete {
+                    display_sets.push(completed.build());
+                }
             }
         }
     }
 
-    Ok(display_sets
-        .into_iter()
-        .filter(|x| x.state() == DisplaySetState::Complete)
-        .map(|x| x.build())
-        .collect())
+    Ok(display_sets)
 }

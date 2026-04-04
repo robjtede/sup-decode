@@ -2,7 +2,7 @@ use chrono::NaiveTime;
 use winnow::{
     Bytes, ModalResult,
     binary::{be_u8, be_u16, be_u32, length_take},
-    combinator::{eof, repeat},
+    combinator::eof,
     error::{StrContext, StrContextValue},
     prelude::*,
     token::{literal, take},
@@ -148,12 +148,6 @@ pub(crate) fn parse_segment(input: &mut &Bytes) -> ModalResult<Segment> {
             }),
         SegmentType::END => Ok(Segment::End),
     }
-}
-
-pub(crate) fn parse_segments(input: &mut &Bytes) -> ModalResult<Vec<Segment>> {
-    repeat(0.., parse_segment)
-        .context(StrContext::Label("PGS segments"))
-        .parse_next(input)
 }
 
 // TODO: edge cases

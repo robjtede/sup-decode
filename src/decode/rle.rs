@@ -1,13 +1,8 @@
 use winnow::{
     Bytes, ModalResult,
-    binary::{
-        be_u8,
-        bits::{bits, bool, take},
-    },
-    combinator::alt,
-    error::{ContextError, ErrMode, StrContext},
+    binary::be_u8,
+    error::StrContext,
     prelude::*,
-    token::literal,
 };
 
 // The Run-length encoding method is defined in the US 7912305 B1 patent.
@@ -22,79 +17,80 @@ use winnow::{
 
 const COLOR_BLACK: u8 = 0;
 
-/// Decodes `00000000 00000000` form.
-fn decode_eol(input: &mut &Bytes) -> ModalResult<()> {
-    literal(&[0, 0]).void().parse_next(input)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RleChunk {
+    Eol,
+    Run { len: usize, color: u8 },
+    Pixel(u8),
 }
 
-/// Decodes `CCCCCCCC` form.
-fn decode_pixel(input: &mut &Bytes) -> ModalResult<u8> {
-    be_u8.verify(|&value| value != 0).parse_next(input)
+impl RleChunk {
+    fn append_to(self, output: &mut Vec<u8>) {
+        match self {
+            Self::Eol => {}
+            Self::Run { len, color } => output.resize(output.len() + len, color),
+            Self::Pixel(pixel) => output.push(pixel),
+        }
+    }
+
+    fn into_vec(self) -> Vec<u8> {
+        let mut output = Vec::new();
+        self.append_to(&mut output);
+        output
+    }
 }
 
-/// Decodes `11LLLLLL LLLLLLLL CCCCCCCC` form.
-fn decode_color_pixels_long(input: &mut &Bytes) -> ModalResult<Vec<u8>> {
-    bits::<_, _, ContextError, _, _>((bool, bool, take(14_usize), take(8_usize)))
-        .verify_map(|(is_color, is_long, len, color)| {
-            (is_color && is_long).then(|| vec![color; len])
-        })
-        .parse_next(input)
-        .map_err(ErrMode::Backtrack)
+fn decode_rle_chunk(input: &mut &Bytes) -> ModalResult<RleChunk> {
+    let first = be_u8.parse_next(input)?;
+
+    if first != 0 {
+        return Ok(RleChunk::Pixel(first));
+    }
+
+    let info = be_u8.parse_next(input)?;
+
+    if info == 0 {
+        return Ok(RleChunk::Eol);
+    }
+
+    let is_color = info & 0b1000_0000 != 0;
+    let is_long = info & 0b0100_0000 != 0;
+    let len_hi = usize::from(info & 0b0011_1111);
+
+    let len = if is_long {
+        (len_hi << 8) | usize::from(be_u8.parse_next(input)?)
+    } else {
+        len_hi
+    };
+
+    let color = if is_color {
+        be_u8.parse_next(input)?
+    } else {
+        COLOR_BLACK
+    };
+
+    Ok(RleChunk::Run { len, color })
 }
 
-/// Decodes `10LLLLLL CCCCCCCC` form.
-fn decode_color_pixels_short(input: &mut &Bytes) -> ModalResult<Vec<u8>> {
-    bits::<_, _, ContextError, _, _>((bool, bool, take(6_usize), take(8_usize)))
-        .verify_map(|(is_color, is_long, len, color)| {
-            (is_color && !is_long).then(|| vec![color; len])
-        })
-        .parse_next(input)
-        .map_err(ErrMode::Backtrack)
-}
-
-/// Decodes `01LLLLLL LLLLLLLL` form.
-fn decode_black_pixels_long(input: &mut &Bytes) -> ModalResult<Vec<u8>> {
-    bits::<_, _, ContextError, _, _>((bool, bool, take(14_usize)))
-        .verify_map(|(is_color, is_long, len)| {
-            (!is_color && is_long).then(|| vec![COLOR_BLACK; len])
-        })
-        .parse_next(input)
-        .map_err(ErrMode::Backtrack)
-}
-
-/// Decodes `00LLLLLL` form.
-fn decode_black_pixels_short(input: &mut &Bytes) -> ModalResult<Vec<u8>> {
-    bits::<_, _, ContextError, _, _>((bool, bool, take(6_usize)))
-        .verify_map(|(is_color, is_long, len)| {
-            (!is_color && !is_long).then(|| vec![COLOR_BLACK; len])
-        })
-        .parse_next(input)
-        .map_err(ErrMode::Backtrack)
-}
-
-fn decode_pixels(input: &mut &Bytes) -> ModalResult<Vec<u8>> {
-    let _zero_bits = be_u8.verify(|&value| value == 0).parse_next(input)?;
-
-    alt((
-        decode_color_pixels_long,
-        decode_color_pixels_short,
-        decode_black_pixels_long,
-        decode_black_pixels_short,
-    ))
-    .parse_next(input)
-}
-
+#[cfg_attr(not(test), expect(dead_code))]
 pub(crate) fn decode_rle(input: &mut &Bytes) -> ModalResult<Vec<u8>> {
-    alt((
-        decode_eol
-            .context(StrContext::Label("RLE EoL"))
-            .map(|()| Vec::new()),
-        decode_pixels.context(StrContext::Label("RLE Pixels")),
-        decode_pixel
-            .context(StrContext::Label("RLE Pixel"))
-            .map(|pixel| vec![pixel]),
-    ))
-    .parse_next(input)
+    decode_rle_chunk
+        .context(StrContext::Label("RLE chunk"))
+        .map(RleChunk::into_vec)
+        .parse_next(input)
+}
+
+pub(crate) fn decode_rle_stream(
+    input: &mut &Bytes,
+    expected_pixels: usize,
+) -> ModalResult<Vec<u8>> {
+    let mut output = Vec::with_capacity(expected_pixels);
+
+    while !input.is_empty() {
+        decode_rle_chunk.parse_next(input)?.append_to(&mut output);
+    }
+
+    Ok(output)
 }
 
 #[cfg(test)]
@@ -104,36 +100,40 @@ mod tests {
     #[test]
     fn parses_eol() {
         assert_eq!(
-            Ok((Bytes::new(&[]), ())),
-            decode_eol.parse_peek(Bytes::new(&[0, 0])),
+            Ok((Bytes::new(&[]), RleChunk::Eol)),
+            decode_rle_chunk.parse_peek(Bytes::new(&[0, 0])),
         );
         assert_eq!(
-            Ok((Bytes::new(&[0]), ())),
-            decode_eol.parse_peek(Bytes::new(&[0, 0, 0])),
+            Ok((Bytes::new(&[0]), RleChunk::Eol)),
+            decode_rle_chunk.parse_peek(Bytes::new(&[0, 0, 0])),
         );
         assert_eq!(
             Ok((Bytes::new(&[]), Vec::new())),
             decode_rle.parse_peek(Bytes::new(&[0, 0])),
         );
 
-        decode_eol.parse_peek(Bytes::new(&[0, 1])).unwrap_err();
-        decode_eol.parse_peek(Bytes::new(&[1])).unwrap_err();
-        decode_eol.parse_peek(Bytes::new(&[0, 1])).unwrap_err();
+        decode_rle.parse_peek(Bytes::new(&[0])).unwrap_err();
     }
 
     #[test]
     fn single_pixel() {
         assert_eq!(
-            Ok((Bytes::new(&[]), 1)),
-            decode_pixel.parse_peek(Bytes::new(&[0b0000_0001])),
+            Ok((Bytes::new(&[]), RleChunk::Pixel(1))),
+            decode_rle_chunk.parse_peek(Bytes::new(&[0b0000_0001])),
         );
     }
 
     #[test]
     fn short_black_pixels() {
         assert_eq!(
-            Ok((Bytes::new(&[]), vec![0; 5])),
-            decode_pixels.parse_peek(Bytes::new(&[0, 0b0000_0101])),
+            Ok((
+                Bytes::new(&[]),
+                RleChunk::Run {
+                    len: 5,
+                    color: COLOR_BLACK,
+                },
+            )),
+            decode_rle_chunk.parse_peek(Bytes::new(&[0, 0b0000_0101])),
         );
         assert_eq!(
             Ok((Bytes::new(&[]), vec![0; 5])),
