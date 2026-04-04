@@ -1,10 +1,13 @@
 use iced::{
-    Color, Element, Length, Point, Renderer, Size, Task, Theme,
+    Alignment, Color, Element, Length, Point, Renderer, Size, Task, Theme,
     mouse::Cursor,
     widget::{Canvas, Container, Row, button, canvas, checkbox, column, text},
 };
 
-use crate::DisplaySet;
+use crate::{
+    DisplaySet,
+    ocr::{OcrFrame, OcrState},
+};
 
 const TRANSPARENT: [f32; 4] = [0.0, 0.0, 0.0, 0.0];
 #[expect(dead_code)]
@@ -20,15 +23,17 @@ pub(crate) enum Message {
 #[derive(Debug)]
 pub(crate) struct SupViewer {
     frames: Vec<DisplaySet>,
+    ocr_frames: Vec<OcrFrame>,
     current_frame: usize,
     show_outlines: bool,
 }
 
 impl SupViewer {
-    pub(crate) fn new(frames: Vec<DisplaySet>) -> (Self, Task<Message>) {
+    pub(crate) fn new(frames: Vec<DisplaySet>, ocr_frames: Vec<OcrFrame>) -> (Self, Task<Message>) {
         (
             Self {
                 frames,
+                ocr_frames,
                 current_frame: 0,
                 show_outlines: true,
             },
@@ -47,8 +52,11 @@ impl SupViewer {
         }
 
         let ds = &self.frames[self.current_frame];
+        let ocr = &self.ocr_frames[self.current_frame];
 
-        let canvas = Canvas::new(self).width(Length::Fill).height(Length::Fill);
+        let canvas = Canvas::new(self)
+            .width(Length::FillPortion(3))
+            .height(Length::Fill);
 
         let back_button = button("prev").on_press(Message::PrevFrame);
         let next_button = button("next").on_press(Message::NextFrame);
@@ -88,6 +96,11 @@ impl SupViewer {
         .width(Length::Fill)
         .padding([6, 10]);
 
+        let ocr_panel = Container::new(render_ocr_panel(ocr))
+            .width(Length::FillPortion(2))
+            .height(Length::Fill)
+            .padding(12);
+
         let content = column![
             text(format!(
                 "frame {} / {}  video={}x{}  object={}x{}",
@@ -98,7 +111,11 @@ impl SupViewer {
                 ds.ods.width,
                 ds.ods.height
             )),
-            canvas,
+            Row::new()
+                .spacing(12)
+                .height(Length::Fill)
+                .push(canvas)
+                .push(ocr_panel),
             Row::new()
                 .spacing(12)
                 .push(back_button)
@@ -327,4 +344,67 @@ impl canvas::Program<Message> for SupViewer {
 
 fn format_timestamp(pts: chrono::NaiveTime) -> String {
     pts.format("%H:%M:%S%.3f").to_string()
+}
+
+fn render_ocr_panel(ocr: &OcrFrame) -> Element<'_, Message> {
+    let header = column![
+        text("OCR").size(22),
+        text(format!("backend: {}", ocr.backend)),
+        text(format!(
+            "subtitle bitmap: {}x{}",
+            ocr.subtitle_size.0, ocr.subtitle_size.1
+        )),
+        text(format!("pts: {}", format_timestamp(ocr.pts))),
+    ]
+    .spacing(4);
+
+    let body = match &ocr.state {
+        OcrState::NotConfigured(reason) => column![
+            text("No OCR backend configured yet."),
+            text(reason.as_str()),
+        ]
+        .spacing(6),
+        OcrState::Failed(err) => {
+            column![text("OCR failed for this frame."), text(err.as_str()),].spacing(6)
+        }
+        OcrState::Recognized(data) => {
+            let confidence = data
+                .mean_confidence
+                .map(|confidence| format!("{confidence:.1}%"))
+                .unwrap_or_else(|| "n/a".to_owned());
+            let words = if data.words.is_empty() {
+                "No word-level details".to_owned()
+            } else {
+                data.words
+                    .iter()
+                    .map(|word| {
+                        let confidence = word
+                            .confidence
+                            .map(|confidence| format!("{confidence:.1}%"))
+                            .unwrap_or_else(|| "n/a".to_owned());
+                        format!("{} ({confidence})", word.text)
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            };
+
+            column![
+                text(format!("mean confidence: {confidence}")),
+                text("Recognized text:"),
+                text(if data.text.is_empty() {
+                    "<empty>"
+                } else {
+                    data.text.as_str()
+                }),
+                text("Words:"),
+                text(words),
+            ]
+            .spacing(6)
+        }
+    };
+
+    Container::new(column![header, body].spacing(12).align_x(Alignment::Start))
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
 }

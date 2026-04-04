@@ -5,11 +5,7 @@ pub(crate) mod rle;
 pub(crate) mod wds;
 
 use chrono::NaiveTime;
-use winnow::{
-    Bytes,
-    error::ContextError,
-    prelude::*,
-};
+use winnow::{Bytes, error::ContextError, prelude::*};
 
 use crate::segment::{Segment, parse_segment};
 
@@ -67,9 +63,7 @@ impl DisplaySetBuilder {
     }
 }
 
-pub(crate) fn parse_frames(
-    bytes: &[u8],
-) -> Result<Vec<DisplaySet>, ContextError> {
+pub(crate) fn parse_frames(bytes: &[u8]) -> Result<Vec<DisplaySet>, ContextError> {
     let mut input = Bytes::new(bytes);
     let mut display_sets = Vec::new();
     let mut running_ds = DisplaySetBuilder::default();

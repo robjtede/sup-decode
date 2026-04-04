@@ -1,9 +1,4 @@
-use winnow::{
-    Bytes, ModalResult,
-    binary::be_u8,
-    error::StrContext,
-    prelude::*,
-};
+use winnow::{Bytes, ModalResult, binary::be_u8, error::StrContext, prelude::*};
 
 // The Run-length encoding method is defined in the US 7912305 B1 patent.
 // Here’s a quick and dirty definition to this method:
