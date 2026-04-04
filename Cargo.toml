@@ -12,7 +12,12 @@ iced = { version = "0.14", features = ["canvas"] }
 image = "0.25"
 strum = { version = "0.28", features = ["derive"] }
 tracing = "0.1.30"
-winnow = "1"
+winnow = { version = "1", features = ["simd"] }
 
 [dev-dependencies]
+criterion = "0.5"
 hex-literal = "1"
+
+[[bench]]
+name = "parser"
+harness = false
