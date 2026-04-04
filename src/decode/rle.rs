@@ -5,15 +5,15 @@ use std::{
 
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt as _};
 use winnow::{
-    Bytes, ModalResult, Parser,
+    Bytes,
     binary::{
         be_u8,
         bits::{self, Bits, bits, bool, take},
     },
-    combinator::{alt, eof, opt, peek, repeat},
+    combinator::alt,
     error::{ContextError, ErrMode, StrContext, StrContextValue},
-    stream::{Stream, StreamIsPartial},
-    token::{literal, rest},
+    prelude::*,
+    token::literal,
 };
 
 // The Run-length encoding method is defined in the US 7912305 B1 patent.

@@ -4,7 +4,12 @@ use std::{
 };
 
 use byteorder::{BigEndian, ReadBytesExt};
-use winnow::Bytes;
+use winnow::{
+    Bytes,
+    binary::{be_u8, be_u16, be_u24},
+    prelude::*,
+    token::{rest, take},
+};
 
 use crate::decode;
 
@@ -15,6 +20,7 @@ pub struct ObjectDefinition {
     pub sequence_flag: SequenceFlag,
     pub width: u16,
     pub height: u16,
+    data_len: u32,
     pub data: Vec<u8>,
 }
 
@@ -31,41 +37,50 @@ pub enum SequenceFlag {
     Both,
 }
 
-pub fn decode_ods(data: Vec<u8>) -> ObjectDefinition {
-    let mut c = Cursor::new(data);
+pub fn decode_ods(input: &mut &Bytes) -> winnow::Result<ObjectDefinition> {
+    // let data_len = c.read_u24::<BigEndian>().unwrap();
 
-    let object_id = c.read_u16::<BigEndian>().unwrap();
-    let version = c.read_u8().unwrap();
+    // let width = c.read_u16::<BigEndian>().unwrap();
+    // let height = c.read_u16::<BigEndian>().unwrap();
 
-    let sequence_flag = match c.read_u8().unwrap() {
-        0x40 => SequenceFlag::Last,
-        0x80 => SequenceFlag::First,
-        0xC0 => SequenceFlag::Both,
-        x => panic!("unknown sequence flag: {}", x),
-    };
+    let mut obj = (
+        be_u16,
+        be_u8,
+        be_u8.verify_map(|flag| {
+            Some(match flag {
+                0x40 => SequenceFlag::Last,
+                0x80 => SequenceFlag::First,
+                0xC0 => SequenceFlag::Both,
+                x => return None,
+            })
+        }),
+        be_u24,
+        // TODO: something about ONLY IF first segment then
+        // take width and height
+        be_u16,
+        be_u16,
+    )
+        .map(
+            |(object_id, version, sequence_flag, data_len, width, height)| ObjectDefinition {
+                id: object_id,
+                version,
+                sequence_flag,
+                width,
+                height,
+                data_len,
+                data: vec![],
+            },
+        )
+        .parse_next(input)?;
 
-    let data_len = c.read_u24::<BigEndian>().unwrap();
+    let image = take(obj.data_len as usize)
+        .map(Bytes::new)
+        .and_then(decode::rle)
+        .parse_next(input)?;
 
-    // TODO: something about ONLY IF first segment then
-    // take width and height
+    obj.data = image;
 
-    let width = c.read_u16::<BigEndian>().unwrap();
-    let height = c.read_u16::<BigEndian>().unwrap();
-
-    let mut object_data = vec![];
-    c.read_to_end(&mut object_data).unwrap();
-    assert_eq!(object_data.len(), (data_len - 4) as usize);
-
-    let image = decode::rle(&mut Bytes::new(&object_data)).unwrap();
-
-    ObjectDefinition {
-        id: object_id,
-        version,
-        sequence_flag,
-        width,
-        height,
-        data: image,
-    }
+    Ok(obj)
 }
 
 #[cfg(test)]

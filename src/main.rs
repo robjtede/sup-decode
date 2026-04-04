@@ -11,6 +11,7 @@ use iced::Application as _;
 use byteorder::{BigEndian, ReadBytesExt};
 use chrono::NaiveTime;
 use strum::IntoDiscriminant as _;
+use winnow::Bytes;
 
 mod decode;
 mod segment;
@@ -195,7 +196,7 @@ fn main() -> iced::Result {
                 Segment::Pds(pts, seg)
             }
             SegmentType::ODS => {
-                let seg = decode::ods(seg_data);
+                let seg = decode::ods(&mut Bytes::new(&seg_data)).unwrap();
                 println!("ODS {seg:?}");
                 Segment::Ods(pts, seg)
             }
