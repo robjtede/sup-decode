@@ -87,22 +87,16 @@ fn decode_pixels(input: &mut &Bytes) -> winnow::Result<Vec<u8>> {
 }
 
 pub fn decode_rle(input: &mut &Bytes) -> winnow::Result<Vec<u8>> {
-    (
-        alt((
-            decode_eol
-                .context(StrContext::Label("RLE EoL"))
-                .map(|()| Vec::new()),
-            decode_pixels.context(StrContext::Label("RLE Pixels")),
-            decode_pixel
-                .context(StrContext::Label("RLE Pixel"))
-                .map(|pixel| vec![pixel]),
-        )),
-        eof.context(StrContext::Expected(StrContextValue::Description(
-            "end of input",
-        ))),
-    )
-        .map(|(result, _)| result)
-        .parse_next(input)
+    alt((
+        decode_eol
+            .context(StrContext::Label("RLE EoL"))
+            .map(|()| Vec::new()),
+        decode_pixels.context(StrContext::Label("RLE Pixels")),
+        decode_pixel
+            .context(StrContext::Label("RLE Pixel"))
+            .map(|pixel| vec![pixel]),
+    ))
+    .parse_next(input)
 }
 
 #[cfg(test)]
@@ -171,5 +165,19 @@ mod tests {
             Ok((Bytes::new(&[]), vec![1u8; 32])),
             decode_rle.parse_peek(Bytes::new(&[0, 0b1100_0000, 0b0010_0000, 0b0000_0001])),
         );
+    }
+
+    #[test]
+    fn rejects_truncated_sequences() {
+        decode_rle.parse_peek(Bytes::new(&[0])).unwrap_err();
+        decode_rle
+            .parse_peek(Bytes::new(&[0, 0b0100_0000]))
+            .unwrap_err();
+        decode_rle
+            .parse_peek(Bytes::new(&[0, 0b1000_0101]))
+            .unwrap_err();
+        decode_rle
+            .parse_peek(Bytes::new(&[0, 0b1100_0000, 0b0010_0000]))
+            .unwrap_err();
     }
 }
