@@ -15,7 +15,7 @@ tracing = "0.1.30"
 winnow = { version = "1", features = ["simd"] }
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.8"
 hex-literal = "1"
 
 [[bench]]
