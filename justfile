@@ -1,4 +1,6 @@
-set lazy := true
+import '.toolchain/rust.just'
+
+set lazy
 
 toolchain := ""
 
@@ -27,10 +29,6 @@ check:
 test-lib:
     cargo {{ toolchain }} nextest run --workspace --all-targets --all-features
 
-[private]
-test-doc:
-    cargo {{ toolchain }} test --doc --workspace --all-features
-
 [env("RUSTDOCFLAGS", "--cfg docsrs -D warnings")]
 [private]
 test-doc-compile:
@@ -38,4 +36,8 @@ test-doc-compile:
 
 # Run tests.
 [parallel]
-test: test-lib test-doc test-doc-compile
+test: test-lib test-doc-compile
+
+# Run tests using the MSRV.
+test-msrv:
+    @just toolchain={{ msrv_rustup }} test
